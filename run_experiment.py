@@ -13,12 +13,13 @@ through to the document.
   3. --compare-feature-sets -> outputs/feature_set_comparison.json
                                                            (fixed vs broken)
   4. analysis.report    -> RESULTS.md
+  5. analysis.site      -> docs/index.html              (with --site)
 
 The real run, on a T4 or better:
 
     python run_experiment.py --dataset datasets/posts.csv --epochs 3 \\
         --split-strategy temporal --label-strategy median \\
-        --max-length 256 --batch-size 16 --embeddings
+        --max-length 256 --batch-size 16 --embeddings --site
 
 The offline smoke run, in about a minute on CPU:
 
@@ -82,6 +83,9 @@ def parse_args(argv=None):
                         help="Model for the --llm row.")
     parser.add_argument("--output-dir", default=str(OUTPUT_DIR))
     parser.add_argument("--results", default=str(PROJECT_ROOT / "RESULTS.md"))
+    parser.add_argument("--site", action="store_true",
+                        help="Also write the published page under docs/.")
+    parser.add_argument("--site-dir", default=str(PROJECT_ROOT / "docs"))
     return parser.parse_args(argv)
 
 
@@ -124,7 +128,7 @@ def main(argv=None):
         )
 
     started = time.time()
-    total_steps = 4
+    total_steps = 5 if args.site else 4
 
     # --- 1. the grid ---------------------------------------------------
     _banner(1, total_steps, "Benchmark grid")
@@ -190,6 +194,20 @@ def main(argv=None):
     # model, is stamped as such at the top -- that is the line a reader skims.
     path = write_report(args.results, artifacts,
                         synthetic=args.synthetic or args.tiny_model)
+
+    # --- 5. the page ------------------------------------------------------
+    # Opt-in, because docs/ is tracked and published: a smoke run must not
+    # quietly rewrite the page the live link serves.
+    if args.site:
+        _banner(5, total_steps, "Writing the published page")
+        from analysis.site import build_site
+
+        page = build_site(
+            artifacts, out_dir=args.site_dir,
+            synthetic=args.synthetic or args.tiny_model,
+            figure_dir=output_dir / "figures",
+        )
+        print(f"Wrote {page}")
 
     elapsed = time.time() - started
     print(f"\nWrote {path} in {elapsed / 60:.1f} min.")

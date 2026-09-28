@@ -56,7 +56,8 @@ majority-class baseline. The test suite runs in a few seconds with no network.
 | Error analysis (slices, calibration, model comparison) | Done |
 | Corpus fetcher + schema adapter (Stack Exchange, CC BY-SA 4.0) | Done |
 | One-command experiment runner + generated `RESULTS.md` | Done |
-| Test suite (366 tests, offline) | Done |
+| Published page generated from the same artefacts | Done — renders *not run yet* until there is a run |
+| Test suite (401 tests, offline) | Done |
 | Results on a real corpus | **Not run — see [Dataset](#dataset)** |
 
 That last row is the honest one. Everything below the line marked *sample data*
@@ -153,6 +154,7 @@ outputs/
 └── results_embeddings.json                 # frozen-embedding row, when run
 
 RESULTS.md                                  # the document, generated from the above
+docs/index.html                             # the published page, with --site
 ```
 
 ## Dataset
@@ -318,15 +320,17 @@ One command, one seed, one split, straight through to the document:
 
 ```bash
 python -m data.fetch_dataset --site stackoverflow --rows 20000 --out datasets/posts.csv
-python run_experiment.py --dataset datasets/posts.csv --epochs 3 --embeddings
+python run_experiment.py --dataset datasets/posts.csv --epochs 3 --embeddings --site
 ```
 
-It runs four steps and writes `RESULTS.md`:
+It runs four steps and writes `RESULTS.md`, plus a fifth with `--site`:
 
 1. `benchmark.py` — the grid → `outputs/benchmark.json`
 2. error analysis — slices, calibration → `outputs/error_analysis.json`
 3. `--compare-feature-sets` — fixed vs broken → `outputs/feature_set_comparison.json`
 4. `analysis.report` — the document
+5. `analysis.site` — the published page (opt-in; `docs/` is tracked, so a smoke
+   run should not rewrite it)
 
 `bert-base-uncased`, `--split-strategy temporal`, `--label-strategy median`,
 3 epochs, `--max-length 256`, `--batch-size 16`, AMP on by default — a Colab T4
@@ -387,6 +391,34 @@ caveat.
 It also **decides what happened** rather than leaving that to the writer:
 
 ```
+### The page
+
+`RESULTS.md` is written for someone who already knows what a macro F1 is.
+`analysis/site.py` writes the same numbers for someone who does not:
+
+```bash
+python -m analysis.site --dataset datasets/posts.csv     # -> docs/index.html
+```
+
+One self-contained HTML file, no JavaScript, no CDN, no analytics — plus the
+figures copied in beside it so the directory renders on its own. It leads with
+the question and the answer in a sentence, then the grid as bars against the
+majority-class baseline, then fixed-versus-broken, then calibration, then what
+the result cannot tell you.
+
+It reads the same artefacts `analysis.report` does and imports its verdict
+functions rather than recomputing anything, so the page and the document cannot
+disagree. Where the numbers are missing it renders *not run yet* in each
+section, which is the state committed here now.
+
+One detail worth naming: a cell is coloured as a win only when the low end of
+its confidence interval clears the baseline. A flat threshold would paint a
+three-point gain on 226 rows green, and three points on 226 rows is noise.
+
+To publish, set GitHub Pages to **`master` / `docs`** in the repository
+settings once. After that the page updates by committing it, and it serves at
+`https://yougijain.github.io/text-vs-timing/`.
+
 ## What happened
 
 TF-IDF beats BERT (0.8230 vs 0.6239). On short text with a few thousand rows
@@ -550,6 +582,7 @@ no pretrained knowledge, so its accuracy is not a result.
 │   ├── pattern_detection.py       # stylistic markers, crossed with posting hour
 │   ├── error_analysis.py          # error slices, calibration, model comparison
 │   ├── report.py                  # artefacts -> RESULTS.md, with the significance tests
+│   ├── site.py                    # artefacts -> docs/index.html, the published page
 │   ├── timestamp_analysis.py      # temporal EDA and figures
 │   └── token_stats.py             # token-length distribution, truncation rates
 ├── data/
@@ -570,6 +603,7 @@ no pretrained knowledge, so its accuracy is not a result.
 │   ├── config.py                  # every tunable, in one dataclass
 │   ├── evaluate.py                # metrics with baseline comparison
 │   └── train.py                   # training loop
+├── docs/                          # the published page (GitHub Pages serves this)
 ├── utils/
 │   ├── loss_utils.py              # loss smoothing
 │   └── time_utils.py              # timestamp parsing, temporal features

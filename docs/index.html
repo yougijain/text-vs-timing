@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text vs timing — Does when a post goes up add anything over what it says?</title>
+<meta name="description" content="An engagement-prediction ablation: does a post's timestamp add anything over its text? TF-IDF and BERT, each with and without the clock.">
+<style>:root {
+  --bg: #fbfaf8; --panel: #ffffff; --ink: #1c1b19; --muted: #6b6862;
+  --line: #e4e0d9; --accent: #1f5f4f; --warn: #8a5a10; --flat: #9a958c;
+  --good: #1f5f4f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14150f; --panel: #1c1e17; --ink: #edeade; --muted: #9c9a8f;
+    --line: #2e3126; --accent: #7fc4ae; --warn: #d9a441; --flat: #6e6c63;
+    --good: #7fc4ae;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 17px/1.65 ui-serif, Georgia, "Iowan Old Style", serif;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 46rem; margin: 0 auto; padding: 0 16px 6rem; }
+h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 1.15; margin: .4rem 0 1rem; }
+h2 {
+  font-size: 1.05rem; text-transform: uppercase; letter-spacing: .09em;
+  color: var(--muted); font-family: ui-sans-serif, system-ui, sans-serif;
+  margin: 3.5rem 0 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--line);
+}
+h3 { font-size: 1.05rem; margin: 2rem 0 .6rem; }
+a { color: var(--accent); }
+.hero { padding: 4rem 0 0; }
+.tag {
+  display: inline-block; font: 600 .7rem/1 ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--accent);
+  border: 1px solid currentColor; border-radius: 99px; padding: .4rem .7rem;
+}
+.tag.warn { color: var(--warn); }
+.answer {
+  font-size: clamp(1.15rem, 3vw, 1.4rem); font-weight: 600;
+  color: var(--accent); margin: 0 0 1.2rem;
+}
+.prose p { color: var(--muted); }
+.banner {
+  border-left: 3px solid var(--warn); background: var(--panel);
+  padding: 1rem 1.2rem; margin: 2rem 0; font-size: .95rem; color: var(--muted);
+}
+.banner strong { color: var(--ink); }
+.empty {
+  color: var(--muted); font-style: italic; background: var(--panel);
+  border: 1px dashed var(--line); border-radius: 8px; padding: 1.1rem;
+}
+.note, .sub, figcaption {
+  font: .87rem/1.55 ui-sans-serif, system-ui, sans-serif; color: var(--muted);
+}
+.grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 1.1rem 1.2rem 1.3rem;
+}
+.card h3 { margin: 0; font-size: 1.05rem; }
+.card .features {
+  font: .78rem/1 ui-sans-serif, system-ui, sans-serif; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--muted); margin: .35rem 0 .9rem;
+}
+.metric {
+  font: 700 2.1rem/1 ui-sans-serif, system-ui, sans-serif;
+  margin: 0 0 .6rem; color: var(--flat);
+}
+.card.good .metric, .metric.good { color: var(--good); }
+.metric.best::after { content: " ★"; font-size: 1rem; vertical-align: super; }
+.bar {
+  position: relative; height: 8px; border-radius: 99px;
+  background: var(--line); margin-bottom: .75rem;
+}
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--flat); }
+.card.good .bar .fill { background: var(--accent); }
+.bar { overflow: visible; }
+.bar .fill { border-radius: 99px; }
+.bar .marker {
+  position: absolute; top: -4px; bottom: -4px; width: 2px;
+  background: var(--ink); opacity: .75;
+}
+.split {
+  display: flex; height: 2.4rem; border-radius: 6px; overflow: hidden;
+  font: 600 .82rem/2.4rem ui-sans-serif, system-ui, sans-serif;
+  margin: 1rem 0; color: #fff;
+}
+.split span { text-align: center; white-space: nowrap; min-width: 4.5rem; }
+.split .fixed { background: var(--accent); }
+.split .broken { background: var(--warn); }
+.scroll { overflow-x: auto; margin: 1.2rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: .93rem; }
+th, td { text-align: left; padding: .55rem .4rem; border-bottom: 1px solid var(--line); }
+th {
+  font: 600 .76rem/1.4 ui-sans-serif, system-ui, sans-serif;
+  text-transform: uppercase; letter-spacing: .07em; color: var(--muted);
+}
+table.kv th { width: 34%; }
+.figures { display: grid; gap: 1.6rem; }
+figure { margin: 0; }
+figure img {
+  width: 100%; height: auto; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff;
+}
+pre {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 1rem; overflow-x: auto;
+}
+code { font: .82rem/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+footer {
+  margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line);
+}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+  <span class="tag warn">Not run yet</span>
+  <h1>Does when a post goes up add anything over what it says?</h1>
+  <p class="answer">Not run yet.</p>
+  <div class="prose">
+<p>The pipeline is built and tested; the corpus has not been fetched and the models have not been trained. When they are, the answer appears here and every number below fills in from the run.</p>
+  </div>
+</header>
+<div class="banner">
+  <strong>No real run yet.</strong> Everything below is the shape of the answer,
+  not the answer. The page is generated from the run artefacts, so it fills in
+  the moment a real corpus goes through the pipeline.
+</div>
+<h2>The grid</h2>
+<p class="empty">The grid runs four cells: TF-IDF and BERT, each with and without the timestamp. Nothing has been trained yet.</p>
+<h2>Fixed, or just shuffled?</h2>
+<p>A model can gain accuracy while getting a pile of previously-correct posts wrong. The only way to see that is post by post, on the rows where the two models disagree.</p>
+<p class="empty">Needs both cells of at least one architecture.</p>
+<h2>Can you trust the confidence?</h2>
+<p class="empty">Error analysis has not run.</p>
+<h2>What this cannot tell you</h2>
+<p>Every temporal feature here is <strong>UTC</strong>, and that bounds
+what the result means. "Late night" is the 00:00–05:00 UTC band, not the small
+hours where the poster was sitting. Without a per-author timezone, a local clock
+cannot be recovered: someone in California writing at 2am local lands at 09:00
+UTC and is not flagged; someone in Berlin writing at 2am local is.
+<br><br>
+The feature is still predictive, because UTC hour correlates with local hour and
+with how many people are awake to vote on a post. It is not evidence about
+anyone's sleep, and nothing here should be read as a claim about a person.</p>
+<h2>The data</h2>
+<p class="empty">No corpus fetched yet. <code>python -m data.fetch_dataset</code> writes a provenance sidecar beside the CSV, and this section quotes it.</p>
+<h2>Figures</h2>
+<p class="empty">Figures are written by the run.</p>
+<h2>Run it yourself</h2>
+<pre><code>git clone https://github.com/yougijain/text-vs-timing.git
+pip install -r requirements.txt
+
+# a real corpus, with its licence and span recorded beside it
+python -m data.fetch_dataset --site stackoverflow --rows 20000 \
+    --out datasets/posts.csv
+
+# the grid, the error analysis, the document, and this page
+python run_experiment.py --dataset datasets/posts.csv --epochs 3 \
+    --embeddings --site</code></pre>
+<footer>
+  <p class="note">Generated by <code>python -m analysis.site</code> on 2026-09-25 18:38 UTC.
+  Every number on this page is read from the run artefacts — none of it is typed
+  by hand.</p>
+  <p class="note"><a href="https://github.com/yougijain/text-vs-timing">Source and method on GitHub</a></p>
+</footer>
+</main>
+</body>
+</html>

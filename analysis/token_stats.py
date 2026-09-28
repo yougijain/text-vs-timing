@@ -9,7 +9,6 @@ quadratically in the attention.
 import argparse
 
 import numpy as np
-import pandas as pd
 
 from data.preprocess import build_local_tokenizer, clean_dataset, get_tokenizer
 from data.schema import read_dataset

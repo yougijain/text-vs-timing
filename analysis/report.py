@@ -210,7 +210,7 @@ def classify_outcome(rows, comparison=None):
 
     # Helps one architecture but not the other: the fusion head, not the clock.
     if len(lifts) > 1:
-        deltas = {m: l["delta"] for m, l in lifts.items()}
+        deltas = {m: lift["delta"] for m, lift in lifts.items()}
         positive = [m for m, d in deltas.items() if d > 0.01]
         if positive and len(positive) < len(deltas):
             verdicts["architecture_dependence"] = (

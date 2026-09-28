@@ -10,7 +10,6 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 
 # Agg backend so plots render on a headless box. The old main.py called
 # plt.show(), which blocks forever over SSH or in CI and saves nothing.

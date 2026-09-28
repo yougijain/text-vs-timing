@@ -31,7 +31,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from analysis.pattern_detection import MARKER_COLUMNS, add_marker_columns  # noqa: E402
+from analysis.pattern_detection import add_marker_columns  # noqa: E402
 from data.data_loader import split_indices  # noqa: E402
 from data.preprocess import build_labels, clean_dataset  # noqa: E402
 from data.schema import read_dataset  # noqa: E402

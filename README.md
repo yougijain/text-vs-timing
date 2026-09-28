@@ -1,5 +1,7 @@
 # Text vs. Timing
 
+[![tests](https://github.com/yougijain/text-vs-timing/actions/workflows/tests.yml/badge.svg)](https://github.com/yougijain/text-vs-timing/actions/workflows/tests.yml)
+
 **Does *when* a post goes up add anything over *what* it says?**
 
 Everyone accepts that posting time affects engagement — it is folklore on every
@@ -58,6 +60,7 @@ majority-class baseline. The test suite runs in a few seconds with no network.
 | One-command experiment runner + generated `RESULTS.md` | Done |
 | Published page generated from the same artefacts | Done — renders *not run yet* until there is a run |
 | Test suite (401 tests, offline) | Done |
+| CI — lint, tests on 3.11/3.12, end-to-end smoke run | Done |
 | Results on a real corpus | **Not run — see [Dataset](#dataset)** |
 
 That last row is the honest one. Everything below the line marked *sample data*
@@ -380,6 +383,27 @@ python run_experiment.py --dataset datasets/posts.csv --skip-bert --embeddings
 That is a real result on real data, and it answers the project's question. The
 fine-tuned rows sharpen it; they are not what makes it valid.
 
+### What CI guards
+
+Every push and pull request runs three jobs:
+
+- **lint** — `ruff check .` on the default rule set (undefined names, unused
+  imports, shadowed builtins). Its own job, so it answers in seconds instead of
+  waiting behind a torch install.
+- **tests** — the full suite on 3.11 and 3.12, with `HF_HUB_OFFLINE=1` and
+  `TRANSFORMERS_OFFLINE=1` set. The suite is offline by design, and those flags
+  turn a test that quietly starts downloading into a failure rather than a slow
+  pass.
+- **smoke** — `run_experiment.py --synthetic --skip-bert --site` end to end,
+  asserting both `RESULTS.md` and `docs/index.html` come out non-empty.
+
+The third one exists because unit tests pass while a pipeline is broken. That
+happened here: a real corpus once cleared the grid and died in step 2, because
+only `main.py` normalised its column names and the analysis modules did not.
+Every module was correct; they did not compose. CI runs the whole thing into a
+temporary directory so the failure shows up on the pull request instead of
+forty minutes into someone's run.
+
 ### Nothing in the report is hand-typed
 
 A results table copied into a README goes stale on the next run and nobody
@@ -604,6 +628,7 @@ no pretrained knowledge, so its accuracy is not a result.
 │   ├── evaluate.py                # metrics with baseline comparison
 │   └── train.py                   # training loop
 ├── docs/                          # the published page (GitHub Pages serves this)
+├── .github/workflows/tests.yml    # lint, tests, end-to-end smoke run
 ├── utils/
 │   ├── loss_utils.py              # loss smoothing
 │   └── time_utils.py              # timestamp parsing, temporal features

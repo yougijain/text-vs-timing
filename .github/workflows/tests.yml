@@ -1,0 +1,110 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# A newer push supersedes the run already in flight. No point spending minutes
+# on a commit nobody will look at again.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Its own job rather than a step in `test`: lint answers in seconds and
+      # should not wait behind a multi-hundred-megabyte torch install.
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint
+        run: ruff check .
+
+  test:
+    name: tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      # One version failing must not hide whether the other passed.
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # torch from PyPI pulls the CUDA build on Linux: several gigabytes of
+      # NVIDIA wheels for a runner with no GPU. Installing the CPU build first
+      # satisfies the `torch>=2.1` line in requirements.txt.
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # The suite is offline by design -- every model is injected or randomly
+      # initialised and nothing reaches the hub. These flags turn a test that
+      # quietly starts downloading into a failure rather than a slow pass.
+      - name: Run tests
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: pytest tests/ -q
+
+  smoke:
+    name: end-to-end smoke run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install CPU-only torch
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Unit tests pass while the pipeline is broken: the modules can each be
+      # correct and still not compose. This has happened here -- a real corpus
+      # once cleared the grid and died in step 2 because only one entry point
+      # normalised its columns. So run the whole thing, on generated data, and
+      # assert both deliverables exist and are not empty.
+      #
+      # Everything lands in RUNNER_TEMP: docs/ is published, and CI must never
+      # be the thing that rewrites the page the live link serves.
+      - name: Run the pipeline end to end
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: |
+          python run_experiment.py --synthetic --skip-bert \
+            --output-dir "$RUNNER_TEMP/outputs" \
+            --results "$RUNNER_TEMP/RESULTS.md" \
+            --site --site-dir "$RUNNER_TEMP/site"
+          test -s "$RUNNER_TEMP/RESULTS.md"
+          test -s "$RUNNER_TEMP/site/index.html"
+
+      - name: Fail if the run left tracked files modified
+        run: git diff --exit-code

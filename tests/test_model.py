@@ -1,6 +1,5 @@
 """The temporal classifier, attention pooling, and checkpointing."""
 
-import numpy as np
 import pytest
 import torch
 
@@ -164,8 +163,10 @@ class TestBertTemporalClassifier:
 
 class TestModelUtils:
     def test_set_seed_is_reproducible(self):
-        set_seed(123); first = torch.randn(5)
-        set_seed(123); second = torch.randn(5)
+        set_seed(123)
+        first = torch.randn(5)
+        set_seed(123)
+        second = torch.randn(5)
         assert torch.equal(first, second)
 
     def test_resolve_device_cpu(self):

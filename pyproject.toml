@@ -1,0 +1,20 @@
+# Lint configuration. There is no packaging here -- this project is run from a
+# checkout, not installed -- so this file carries tool settings only.
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+# Ruff's default set: pycodestyle errors (E4/E7/E9) and pyflakes (F). That is
+# the part that catches real defects -- undefined names, unused imports,
+# shadowed builtins -- rather than formatting opinions.
+#
+# E501 (line length) is deliberately off. The code is written to about 80
+# columns by hand; turning it on at 88 flags 70 lines, and reformatting them
+# would bury the next real finding in churn.
+#
+# I001 (import sorting) is off too: several modules must call
+# `matplotlib.use("Agg")` before importing pyplot, which is why they carry
+# `# noqa: E402`. An import sorter does not know that and would move the
+# imports above the call.
+select = ["E4", "E7", "E9", "F"]

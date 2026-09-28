@@ -14,7 +14,6 @@ scored by the same compute_metrics, so the numbers are directly comparable.
 """
 
 import argparse
-import json
 import os
 import sys
 

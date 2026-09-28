@@ -18,7 +18,6 @@ import argparse
 import os
 import sys
 
-import pandas as pd
 
 # Silence the HF symlink warning before transformers is imported, otherwise the
 # setting arrives too late to have any effect.
@@ -50,7 +49,6 @@ from models.embedding_baseline import (  # noqa: E402
 from models.llm_baseline import (  # noqa: E402
     DEFAULT_MODEL as DEFAULT_LLM_MODEL,
     LlmBaseline,
-    estimate_cost,
 )
 from models.tfidf_baseline import TfidfBaseline, print_top_features  # noqa: E402
 from models.model_utils import (  # noqa: E402

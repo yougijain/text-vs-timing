@@ -43,6 +43,7 @@ def _build_config(args, use_temporal):
         learning_rate=args.learning_rate,
         seed=args.seed,
         device=args.device,
+        use_amp=not getattr(args, "no_amp", False),
     )
 
 
@@ -127,7 +128,7 @@ def run_grid(args):
             train_loader, model,
             optimizer=build_optimizer(model, config.learning_rate, config.weight_decay),
             epochs=config.epochs, val_loader=val_loader, device=device,
-            log_every=0, config=config,
+            log_every=0, config=config, use_amp=config.use_amp,
         )
         metrics = evaluate_model(val_loader, model, device=device, verbose=False)
         rows.append({"model": label, "features": feature_set, "metrics": metrics})
@@ -217,6 +218,9 @@ def parse_args(argv=None):
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--no-amp", action="store_true",
+                        help="Disable mixed precision even on CUDA. The escape\n"
+                             "hatch when the loss goes to NaN on a T4.")
     parser.add_argument("--out", default=None, help="Write the table as JSON here.")
     return parser.parse_args(argv)
 

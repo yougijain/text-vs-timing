@@ -319,6 +319,10 @@ number in the report.
 
 ## Running the experiment
 
+**[`RUNBOOK.md`](RUNBOOK.md) is the step-by-step version** — fetch, sanity run,
+real run, how to read the result, and the Colab path for the BERT rows. What
+follows is the short form.
+
 One command, one seed, one split, straight through to the document:
 
 ```bash
@@ -592,6 +596,7 @@ no pretrained knowledge, so its accuracy is not a result.
 | `--label-strategy` | `median` (default), `threshold`, `positive` |
 | `--split-strategy` | `temporal` (default) or `random` |
 | `--device` | `auto`, `cpu`, `cuda` |
+| `--no-amp` | Disable mixed precision on CUDA. The fix when the loss goes to NaN |
 
 `python main.py --help` lists all of them.
 

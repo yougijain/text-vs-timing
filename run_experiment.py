@@ -70,6 +70,8 @@ def parse_args(argv=None):
     parser.add_argument("--learning-rate", type=float, default=2e-5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--no-amp", action="store_true",
+                        help="Disable mixed precision even on CUDA.")
     parser.add_argument("--tiny-model", action="store_true",
                         help="Random miniature BERT. Plumbing check, not a result.")
     parser.add_argument("--offline-tokenizer", action="store_true")
@@ -153,7 +155,8 @@ def main(argv=None):
         grid_argv += ["--encoder-name", args.encoder_name]
     if args.llm_model:
         grid_argv += ["--llm-model", args.llm_model]
-    for flag, enabled in (("--tiny-model", args.tiny_model),
+    for flag, enabled in (("--no-amp", args.no_amp),
+                          ("--tiny-model", args.tiny_model),
                           ("--offline-tokenizer", args.offline_tokenizer),
                           ("--skip-bert", args.skip_bert),
                           ("--embeddings", args.embeddings),

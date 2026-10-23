@@ -1,0 +1,27 @@
+{
+  "source": "Stack Exchange API v2.3",
+  "site": "stackoverflow",
+  "endpoint": "https://api.stackexchange.com/2.3/questions",
+  "api_filter": "withbody",
+  "licence": "CC BY-SA 4.0",
+  "licence_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "terms_url": "https://stackoverflow.com/legal/terms-of-service/public",
+  "attribution": "Content from the Stack Exchange 'stackoverflow' site, retrieved via the public Stack Exchange API and licensed under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/). Individual posts remain attributable to their authors via the `id` column.",
+  "query": {
+    "from_date": "2023-01-01",
+    "to_date": "2024-01-01",
+    "order": "desc",
+    "sort": "creation",
+    "page_size": 100,
+    "code_blocks": "stripped"
+  },
+  "fetched_at_utc": "2026-10-23T14:57:49.520890+00:00",
+  "rows": 20000,
+  "fetch_stats": {
+    "requests_made": 200,
+    "quota_remaining": 102,
+    "questions_collected": 20000
+  },
+  "first_post_utc": "2023-12-15T10:36:23+00:00",
+  "last_post_utc": "2023-12-31T23:52:06+00:00"
+}

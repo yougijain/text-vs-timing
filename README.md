@@ -341,7 +341,10 @@ It runs four steps and writes `RESULTS.md`, plus a fifth with `--site`:
 
 `bert-base-uncased`, `--split-strategy temporal`, `--label-strategy median`,
 3 epochs, `--max-length 256`, `--batch-size 16`, AMP on by default — a Colab T4
-is enough.
+is enough, and [`notebooks/bert_colab.ipynb`](notebooks/bert_colab.ipynb) runs
+the BERT rows there end to end:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yougijain/text-vs-timing/blob/master/notebooks/bert_colab.ipynb)
 
 ### Two smoke runs before the real one
 
@@ -634,6 +637,8 @@ no pretrained knowledge, so its accuracy is not a result.
 │   ├── evaluate.py                # metrics with baseline comparison
 │   └── train.py                   # training loop
 ├── docs/                          # the published page (GitHub Pages serves this)
+├── notebooks/
+│   └── bert_colab.ipynb           # the BERT rows on a Colab T4 (runbook stage 5)
 ├── .github/workflows/tests.yml    # lint, tests, end-to-end smoke run
 ├── utils/
 │   ├── loss_utils.py              # loss smoothing

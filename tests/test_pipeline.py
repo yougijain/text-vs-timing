@@ -243,30 +243,33 @@ class TestEvaluation:
 
 
 class TestMainEntryPoint:
-    def test_full_run_offline(self, tmp_path, monkeypatch):
+    def test_full_run_offline(self, tmp_path):
         """The whole pipeline, end to end, with no network access."""
         csv = tmp_path / "sample.csv"
         generate_dataset(300, seed=13).to_csv(csv, index=False)
-        monkeypatch.chdir(tmp_path)
+        out = tmp_path / "outputs"
 
         results = main_module.main([
             "--dataset", str(csv), "--tiny-model", "--epochs", "1",
             "--batch-size", "16", "--max-length", "32", "--split-strategy", "random",
-            "--skip-analysis",
+            "--skip-analysis", "--output-dir", str(out),
         ])
         assert results["final_metrics"]["num_samples"] > 0
         assert results["config"]["use_temporal_features"] is True
         assert len(results["history"]["batch_losses"]) > 0
+        # A test run left in the real outputs/ gets picked up by the report.
+        assert (out / "results.json").exists()
+        assert (out / "figures" / "loss_curve.png").exists()
 
-    def test_text_only_ablation_builds_no_temporal_branch(self, tmp_path, monkeypatch):
+    def test_text_only_ablation_builds_no_temporal_branch(self, tmp_path):
         csv = tmp_path / "sample.csv"
         generate_dataset(200, seed=17).to_csv(csv, index=False)
-        monkeypatch.chdir(tmp_path)
 
         results = main_module.main([
             "--dataset", str(csv), "--tiny-model", "--epochs", "1",
             "--batch-size", "16", "--max-length", "32", "--no-temporal",
             "--split-strategy", "random", "--skip-analysis",
+            "--output-dir", str(tmp_path / "outputs"),
         ])
         assert results["config"]["use_temporal_features"] is False
 

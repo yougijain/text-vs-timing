@@ -14,6 +14,12 @@ import benchmark
 import run_experiment
 
 
+@pytest.fixture(autouse=True)
+def outputs_in_tmp(tmp_path, monkeypatch):
+    """The driver creates --output-dir before the grid runs; keep it out of the repo."""
+    monkeypatch.setattr(run_experiment, "OUTPUT_DIR", tmp_path / "outputs")
+
+
 class Captured(Exception):
     """Stops the driver once the grid argv has been seen."""
 

@@ -160,15 +160,15 @@ class TestTopFeatures:
 
 
 class TestMainIntegration:
-    def test_tfidf_runs_through_main(self, tmp_path, monkeypatch):
+    def test_tfidf_runs_through_main(self, tmp_path):
         from data.make_sample_data import generate_dataset
         csv = tmp_path / "sample.csv"
         generate_dataset(300, seed=21).to_csv(csv, index=False)
-        monkeypatch.chdir(tmp_path)
 
         results = pipeline.main([
             "--dataset", str(csv), "--model", "tfidf",
             "--split-strategy", "random", "--skip-analysis",
+            "--output-dir", str(tmp_path / "outputs"),
         ])
         assert results["final_metrics"]["num_samples"] > 0
         assert "top_features" in results
@@ -200,6 +200,7 @@ class TestBenchmark:
             "--out", str(tmp_path / "bench.json"),
         ])
         assert len(rows) == 2
+        assert (tmp_path / "checkpoints").is_dir()  # beside --out, not in outputs/
         assert {r["features"] for r in rows} == {"text only", "text + temporal"}
         assert all(r["model"] == "TF-IDF" for r in rows)
 

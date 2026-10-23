@@ -36,9 +36,27 @@ Stages 1–4 and 7 are a laptop and about an hour.
 
 ```bash
 git pull origin master
-pip install -r requirements.txt
-pytest tests/ -q          # expect 401 passed
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 ```
+
+**On Linux, install CPU torch first.** The PyPI default is the CUDA build —
+several gigabytes of NVIDIA wheels for a machine that may have no GPU. Skip
+this line on macOS, where the PyPI wheel is CPU-only already.
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Then the rest, and the suite:
+
+```bash
+pip install -r requirements.txt
+pytest tests/ -q          # expect 411 passed
+```
+
+`--skip-bert` skips *training* BERT, not installing it: `data/preprocess.py`
+imports `AutoTokenizer` at module level, so transformers and torch come down on
+every path, GPU or not. Budget about 3 GB.
 
 If the suite is red before you start, fix that first. Everything downstream
 assumes it is green.

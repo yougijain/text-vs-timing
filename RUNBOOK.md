@@ -227,6 +227,12 @@ the cheap models say before spending a GPU hour on whether the expensive one
 beats them. If TF-IDF ties BERT, that is the more interesting finding, and you
 want to walk into it rather than discover it after the fact.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yougijain/text-vs-timing/blob/master/notebooks/bert_colab.ipynb)
+
+[`notebooks/bert_colab.ipynb`](notebooks/bert_colab.ipynb) is this stage as
+cells: GPU check, clone, upload, run, download. It opens with a T4 requested.
+The steps below are the same thing by hand.
+
 In Colab: Runtime → Change runtime type → T4 GPU, then
 
 ```python

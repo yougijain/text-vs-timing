@@ -59,13 +59,13 @@ majority-class baseline. The test suite runs in a few seconds with no network.
 | Corpus fetcher + schema adapter (Stack Exchange, CC BY-SA 4.0) | Done |
 | One-command experiment runner + generated `RESULTS.md` | Done |
 | Published page generated from the same artefacts | Done — renders *not run yet* until there is a run |
-| Test suite (401 tests, offline) | Done |
+| Test suite (411 tests, offline) | Done |
 | CI — lint, tests on 3.11/3.12, end-to-end smoke run | Done |
-| Results on a real corpus | **Not run — see [Dataset](#dataset)** |
+| Results on a real corpus | **Linear grid run on 20,000 Stack Overflow posts — see [RESULTS.md](RESULTS.md).** BERT rows not run yet |
 
-That last row is the honest one. Everything below the line marked *sample data*
-was produced on generated text and is a check that the plumbing works, not a
-finding.
+That last row is the one that matters. Everything below the line marked *sample
+data* was produced on generated text and is a check that the plumbing works, not
+a finding; the finding is in [RESULTS.md](RESULTS.md).
 
 ## Install
 
@@ -745,7 +745,9 @@ predicts it is modelling that audience's behaviour, not the merit of the writing
 > **Sample data.** Generated template text with a deliberately planted
 > time-of-day signal. These numbers demonstrate that the pipeline works end to
 > end and that the ablation is wired up correctly. They say nothing about real
-> posts, and they are not the project's result.
+> posts, and they are not the project's result — that is
+> [RESULTS.md](RESULTS.md), from 20,000 real Stack Overflow posts, where the
+> planted signal's real-world counterpart does not show up.
 
 Full grid, `benchmark.py --synthetic --tiny-model --epochs 6 --learning-rate 1e-3`,
 majority-class baseline 0.500:

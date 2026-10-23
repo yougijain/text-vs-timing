@@ -546,7 +546,7 @@ def _repo_relative(path):
     """
     path = Path(path).resolve()
     try:
-        return str(path.relative_to(PROJECT_ROOT))
+        return path.relative_to(PROJECT_ROOT).as_posix()
     except ValueError:
         return str(path)
 

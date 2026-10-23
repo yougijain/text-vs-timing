@@ -17,6 +17,7 @@ Examples:
 import argparse
 import os
 import sys
+from pathlib import Path
 
 
 # Silence the HF symlink warning before transformers is imported, otherwise the
@@ -57,7 +58,7 @@ from models.model_utils import (  # noqa: E402
     save_metrics,
     set_seed,
 )
-from training.config import Config, TIMESTAMP_COLUMN  # noqa: E402
+from training.config import Config, OUTPUT_DIR, TIMESTAMP_COLUMN  # noqa: E402
 from training.evaluate import evaluate_model  # noqa: E402
 from training.train import build_optimizer, train_model  # noqa: E402
 from utils.time_utils import add_temporal_features, temporal_feature_matrix  # noqa: E402
@@ -406,6 +407,8 @@ def parse_args(argv=None):
                              help="Disable mixed precision even on CUDA.")
     train_group.add_argument("--skip-analysis", action="store_true",
                              help="Skip the descriptive analysis and figures.")
+    train_group.add_argument("--output-dir", default=str(OUTPUT_DIR),
+                             help="Where results, checkpoints and figures are written.")
     return parser.parse_args(argv)
 
 
@@ -446,6 +449,8 @@ def main(argv=None):
         seed=args.seed,
         device=args.device,
         use_amp=not args.no_amp,
+        checkpoint_dir=Path(args.output_dir) / "checkpoints",
+        figure_dir=Path(args.output_dir) / "figures",
     )
     config.ensure_dirs()
     set_seed(config.seed)

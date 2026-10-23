@@ -16,6 +16,7 @@ scored by the same compute_metrics, so the numbers are directly comparable.
 import argparse
 import os
 import sys
+from pathlib import Path
 
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
@@ -23,10 +24,14 @@ import main as pipeline  # noqa: E402
 from models.embedding_baseline import DEFAULT_ENCODER  # noqa: E402
 from models.llm_baseline import DEFAULT_MODEL as DEFAULT_LLM_MODEL  # noqa: E402
 from models.model_utils import save_metrics, set_seed  # noqa: E402
-from training.config import Config  # noqa: E402
+from training.config import Config, OUTPUT_DIR  # noqa: E402
 
 
 def _build_config(args, use_temporal):
+    # Checkpoints and figures go beside the table, so --out (which
+    # run_experiment.py sets from its --output-dir) decides where a run writes.
+    out = getattr(args, "out", None)
+    output_dir = Path(out).parent if out else OUTPUT_DIR
     return Config(
         dataset_path=args.dataset,
         label_strategy=args.label_strategy,
@@ -44,6 +49,8 @@ def _build_config(args, use_temporal):
         seed=args.seed,
         device=args.device,
         use_amp=not getattr(args, "no_amp", False),
+        checkpoint_dir=output_dir / "checkpoints",
+        figure_dir=output_dir / "figures",
     )
 
 
@@ -240,7 +247,7 @@ def main(argv=None):
     rows = run_grid(args)
     print_table(rows)
 
-    out = args.out or (Config().checkpoint_dir.parent / "benchmark.json")
+    out = args.out or (OUTPUT_DIR / "benchmark.json")
     save_metrics({"rows": rows}, out)
     print(f"\nWritten to {out}")
     return rows

@@ -597,6 +597,7 @@ no pretrained knowledge, so its accuracy is not a result.
 | `--split-strategy` | `temporal` (default) or `random` |
 | `--device` | `auto`, `cpu`, `cuda` |
 | `--no-amp` | Disable mixed precision on CUDA. The fix when the loss goes to NaN |
+| `--output-dir` | Where results, checkpoints and figures go (default `outputs/`) |
 
 `python main.py --help` lists all of them.
 

@@ -3,21 +3,32 @@
 Everything in this repository works except the one thing it exists to do: the
 grid has never been run on a real corpus. This is the sequence that fixes that.
 
-**You do not need a GPU.** `--skip-bert` gives a complete four-cell grid —
-TF-IDF and frozen MiniLM, each with and without the timestamp — and that grid
-answers the question. The fine-tuned BERT rows sharpen the answer; they are not
-what makes it valid. [Appendix A](#appendix-a-the-bert-rows-on-colab) covers
-them if you want them.
+**You do not need a GPU to get a result.** `--skip-bert` gives a complete
+four-cell grid — TF-IDF and frozen MiniLM, each with and without the timestamp
+— and it answers the project's central question: does the timestamp add
+anything over the text.
 
-Budget about an hour, most of it waiting. Three commands do the work.
+It does not answer the other half. Two of [the four
+outcomes](#the-four-outcomes) are about BERT against TF-IDF, and without a BERT
+row the report says so in as many words:
+
+> _Not enough of the grid was run to compare architectures._
+
+So the result is read twice: once after the linear grid, for the temporal
+verdict, and again after the BERT rows, for the whole thing. Stage 5 needs a
+free Colab T4 and is the only stage that does.
 
 | Stage | What | Roughly |
 |---|---|---|
 | 1 | Fetch a corpus | 10–20 min |
 | 2 | Capped sanity run | 2 min |
-| 3 | The real run | 10–30 min |
-| 4 | Read the result | as long as it deserves |
-| 5 | Commit and publish | 1 min |
+| 3 | The linear grid | 10–30 min |
+| 4 | Read the temporal half | as long as it deserves |
+| 5 | The BERT rows, on a T4 | 30–60 min |
+| 6 | Read it again, whole | — |
+| 7 | Commit and publish | 1 min |
+
+Stages 1–4 and 7 are a laptop and about an hour.
 
 ---
 
@@ -25,9 +36,27 @@ Budget about an hour, most of it waiting. Three commands do the work.
 
 ```bash
 git pull origin master
-pip install -r requirements.txt
-pytest tests/ -q          # expect 401 passed
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 ```
+
+**On Linux, install CPU torch first.** The PyPI default is the CUDA build —
+several gigabytes of NVIDIA wheels for a machine that may have no GPU. Skip
+this line on macOS, where the PyPI wheel is CPU-only already.
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Then the rest, and the suite:
+
+```bash
+pip install -r requirements.txt
+pytest tests/ -q          # expect 411 passed
+```
+
+`--skip-bert` skips *training* BERT, not installing it: `data/preprocess.py`
+imports `AutoTokenizer` at module level, so transformers and torch come down on
+every path, GPU or not. Budget about 3 GB.
 
 If the suite is red before you start, fix that first. Everything downstream
 assumes it is green.
@@ -113,7 +142,7 @@ Do not read the numbers. 2,000 rows is not a result.
 
 ---
 
-## Stage 3: the real run
+## Stage 3: the linear grid
 
 ```bash
 python run_experiment.py --dataset datasets/posts.csv \
@@ -137,7 +166,7 @@ files, which is why they cannot disagree with each other.
 
 ---
 
-## Stage 4: read the result honestly
+## Stage 4: read the temporal half
 
 Read `RESULTS.md` in this order. Skipping to the accuracy is how people talk
 themselves into findings.
@@ -172,6 +201,10 @@ publishable:
 | BERT clearly beats TF-IDF | The text carries structure a bag of words cannot reach. |
 | They tie | The transformer is not earning its compute on short text. Worth knowing before anyone deploys one. |
 
+**The first two are answerable now; the last two are not.** They need a BERT
+row, and at this point there isn't one. Write down the temporal verdict and
+leave the architecture question open until stage 6.
+
 **If the timestamp adds nothing, that is the result.** It is a cleaner finding
 than a marginal gain, and it is the one most people would quietly tune away.
 The project is built to report it: the honest negative is why the majority
@@ -187,7 +220,63 @@ not because of anything about the author.
 
 ---
 
-## Stage 5: publish
+## Stage 5: the BERT rows, on a T4
+
+Worth doing once the linear grid is in, and only then — you want to know what
+the cheap models say before spending a GPU hour on whether the expensive one
+beats them. If TF-IDF ties BERT, that is the more interesting finding, and you
+want to walk into it rather than discover it after the fact.
+
+In Colab: Runtime → Change runtime type → T4 GPU, then
+
+```python
+!git clone https://github.com/yougijain/text-vs-timing.git
+%cd text-vs-timing
+!pip install -q -r requirements.txt
+```
+
+The corpus is gitignored, so upload `datasets/posts.csv` from the file pane
+rather than re-fetching and burning another day's quota. The provenance sidecar
+comes down with the clone, so it still matches.
+
+```python
+!python run_experiment.py --dataset datasets/posts.csv \
+    --epochs 3 --max-length 256 --batch-size 16 \
+    --embeddings --site
+```
+
+Defaults are already what you want: `bert-base-uncased`, temporal split, median
+labels, AMP on. `--no-amp` turns mixed precision off — the fix if the loss goes
+to NaN, and worth one deliberate run either way, because the difference is a
+number you can quote.
+
+**Write the timing down while it is on screen.** `train_model` prints
+`Training finished in Ns` and that is the only place it goes: `benchmark.py`
+does not keep the history, so the figure reaches neither `benchmark.json` nor
+`RESULTS.md`, and a recycled Colab runtime takes the scrollback with it. Note
+that it is total training time across all epochs, not per epoch.
+
+Download `RESULTS.md`, `docs/index.html` and `outputs/` when it finishes, and
+commit them from your laptop.
+
+---
+
+## Stage 6: read it again, whole
+
+The BERT run regenerates `RESULTS.md` over the top of the linear one, so the
+document you read at stage 4 is gone. Read it again in the same order, and this
+time all four outcomes are on the table — the report will have replaced _"not
+enough of the grid was run"_ with a headline naming which architecture won, or
+saying they are within sampling error of each other.
+
+Check that the temporal verdict did not change when the architectures did. If
+the timestamp helped the linear models and not BERT, or the reverse, that is
+the "helps only one" outcome and it points at the fusion head rather than the
+clock. Say so rather than averaging the two.
+
+---
+
+## Stage 7: publish
 
 ```bash
 git add RESULTS.md docs/
@@ -199,40 +288,47 @@ Pages serves `master` / `docs`, so the live page updates on push. Then change
 the two lines in `README.md` that currently say the run has not happened: the
 status table's last row, and the sample-data appendix note.
 
----
-
-## Appendix A: the BERT rows on Colab
-
-Worth doing once the linear grid is in, and only then — you want to know what
-the cheap models say before you spend a GPU hour finding out whether the
-expensive one beats them.
-
-Runtime → Change runtime type → T4 GPU, then:
-
-```python
-!git clone https://github.com/yougijain/text-vs-timing.git
-%cd text-vs-timing
-!pip install -q -r requirements.txt
-```
-
-The corpus is gitignored, so upload `datasets/posts.csv` from the file pane
-rather than re-fetching and burning another day's quota. The provenance sidecar
-comes down with the clone, so it will still match.
-
-```python
-!python run_experiment.py --dataset datasets/posts.csv \
-    --epochs 3 --max-length 256 --batch-size 16 \
-    --embeddings --site
-```
-
-Defaults are already what you want: `bert-base-uncased`, temporal split, median
-labels, AMP on. Add `--no-amp` if the loss goes to NaN. Download `RESULTS.md`,
-`docs/index.html` and `outputs/` when it finishes, and commit them from your
-laptop.
+Publishing twice is fine, and better than waiting. Commit after stage 4 so the
+page stops saying "not run yet", and again after stage 6 when the BERT rows
+land. If you never get to a GPU, the stage-4 commit is still a complete,
+honest result.
 
 ---
 
-## Appendix B: what can go wrong
+## Know cold
+
+Running it is half the work. These are the questions the project invites, and
+an answer you have to reconstruct on the spot is an answer you do not have.
+
+1. **Tokenization.** What does BERT's tokenizer do with a word it has never
+   seen, and what happens to a post longer than `--max-length 256`?
+2. **Attention pooling.** The fine-tuned model pools token states through a
+   learned attention layer rather than taking `[CLS]` or a flat mean. What does
+   that buy, and what does the frozen MiniLM path do instead?
+3. **Warmup and clipping.** Why does the learning rate start near zero and ramp
+   up, and what is gradient clipping at 1.0 protecting against?
+4. **Cyclical encoding.** Why is hour-of-day two features and not one? What
+   specifically breaks if you feed the model the integer 23?
+5. **What the frozen baseline isolates.** TF-IDF against fine-tuned BERT varies
+   two things at once. Name both, and say which one the MiniLM row holds fixed.
+6. **The split.** Why chronological rather than random, and why pin `--from`
+   and `--to`? Both answers are about the same failure.
+7. **McNemar.** What does it test, why is a two-sample test on the two
+   accuracies the wrong tool here, and which cells of the 2x2 carry no
+   information about which model is better?
+8. **The label.** How is the target defined? `median` is not a plain median —
+   say what `_balanced_cut` actually does and why it exists.
+9. **Baseline, lift and ECE.** Why is an accuracy without its baseline
+   unreadable? What does your ECE number license you to do with the predicted
+   probabilities, and what does it not?
+
+And the one that is not a question, because getting it wrong is not a gap in
+knowledge but a claim you cannot support: **every temporal feature here is
+UTC.** Nothing in this project says anything about when a person was awake.
+
+---
+
+## Appendix: what can go wrong
 
 | Symptom | Cause | Fix |
 |---|---|---|

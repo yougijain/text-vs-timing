@@ -604,7 +604,7 @@ def write_report(path, artifacts, synthetic=False):
         synthetic=synthetic or artifacts.get("synthetic", False),
     )
     path = Path(path)
-    path.write_text(markdown)
+    path.write_text(markdown, encoding="utf-8")
     return path
 
 

@@ -639,7 +639,8 @@ def build_site(artifacts, out_dir=SITE_DIR, synthetic=False, figure_dir=None):
     (out_dir / ".nojekyll").write_text("")
 
     page = out_dir / "index.html"
-    page.write_text(render_page(artifacts, synthetic=synthetic, figures=available))
+    page.write_text(render_page(artifacts, synthetic=synthetic, figures=available),
+                    encoding="utf-8")
     return page
 
 

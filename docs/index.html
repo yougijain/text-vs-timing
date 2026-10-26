@@ -123,8 +123,9 @@ footer {
   <h1>Does when a post goes up add anything over what it says?</h1>
   <p class="answer">Not measurably.</p>
   <div class="prose">
-<p>Adding the posting time to TF-IDF moved accuracy from 61.0% to 61.0%, a change of -0.1 points on 3999 held-out posts.</p>
-<p>Post by post, the timestamp corrected 33 posts the text-only model got wrong and broke 35 it had got right (p = 0.903, chi-square with continuity correction).</p>
+<p>Adding the posting time to TF-IDF moved accuracy from 61.0% to 61.0%, a change of +0.1 points on 3999 held-out posts.</p>
+<p>Post by post, the timestamp corrected 34 posts the text-only model got wrong and broke 32 it had got right (p = 0.902, chi-square with continuity correction).</p>
+<p>BERT and TF-IDF are within sampling error of each other (0.6052 vs 0.6104). The transformer is not earning its compute on this data, which is worth knowing before anyone deploys one.</p>
 <p>An inconclusive result is a result. It means that on this corpus the posting time carries no usable signal once the text is accounted for, which is worth more than a tuned number that happened to go up.</p>
   </div>
 </header>
@@ -141,7 +142,7 @@ reach it means the model learned nothing.</p>
       <span class="fill" style="width:61.0%"></span>
       <span class="marker" style="left:60.5%"></span>
     </div>
-    <p class="sub">+0.5 points over the baseline · macro F1 0.538</p>
+    <p class="sub">+0.5 points over the baseline · macro F1 0.537</p>
   </article>
   <article class="card flat">
     <h3>TF-IDF</h3>
@@ -151,7 +152,7 @@ reach it means the model learned nothing.</p>
       <span class="fill" style="width:61.0%"></span>
       <span class="marker" style="left:60.5%"></span>
     </div>
-    <p class="sub">+0.5 points over the baseline · macro F1 0.542</p>
+    <p class="sub">+0.5 points over the baseline · macro F1 0.543</p>
   </article>
   <article class="card flat">
     <h3>Frozen all-MiniLM-L6-v2</h3>
@@ -173,24 +174,45 @@ reach it means the model learned nothing.</p>
     </div>
     <p class="sub">+1.1 points over the baseline · macro F1 0.535</p>
   </article>
+  <article class="card flat">
+    <h3>BERT</h3>
+    <p class="features">text only</p>
+    <p class="metric">60.5%</p>
+    <div class="bar" role="img" aria-label="accuracy 60.5%, baseline 60.5%">
+      <span class="fill" style="width:60.5%"></span>
+      <span class="marker" style="left:60.5%"></span>
+    </div>
+    <p class="sub">-0.0 points over the baseline · macro F1 0.560</p>
+  </article>
+  <article class="card flat">
+    <h3>BERT</h3>
+    <p class="features">text + temporal</p>
+    <p class="metric">59.7%</p>
+    <div class="bar" role="img" aria-label="accuracy 59.7%, baseline 60.5%">
+      <span class="fill" style="width:59.7%"></span>
+      <span class="marker" style="left:60.5%"></span>
+    </div>
+    <p class="sub">-0.8 points over the baseline · macro F1 0.556</p>
+  </article>
 </div>
 <h2>Fixed, or just shuffled?</h2>
 <p>A model can gain accuracy while getting a pile of previously-correct posts wrong. The only way to see that is post by post, on the rows where the two models disagree.</p>
 <div class="split" role="img"
-     aria-label="33 posts fixed, 35 broken">
-  <span class="fixed" style="width:48.5%">33 fixed</span>
-  <span class="broken" style="width:51.5%">35 broken</span>
+     aria-label="34 posts fixed, 32 broken">
+  <span class="fixed" style="width:51.5%">34 fixed</span>
+  <span class="broken" style="width:48.5%">32 broken</span>
 </div>
-<p class="note">Of the 68 posts where the two models disagreed,
-the timestamp corrected 33 and broke 35
-(p = 0.903, chi-square with continuity correction).
+<p class="note">Of the 66 posts where the two models disagreed,
+the timestamp corrected 34 and broke 32
+(p = 0.902, chi-square with continuity correction).
 Accuracy alone would have shown a single number and hidden this split.</p>
 <div class="scroll">
 <table>
   <thead><tr><th>Architecture</th><th>Text only</th><th>Text + timestamp</th><th>Difference</th></tr></thead>
   <tbody>
-    <tr><td>TF-IDF</td><td>61.0%</td><td>61.0%</td><td>-0.1 points</td></tr>
+    <tr><td>TF-IDF</td><td>61.0%</td><td>61.0%</td><td>+0.1 points</td></tr>
     <tr><td>Frozen all-MiniLM-L6-v2</td><td>62.0%</td><td>61.7%</td><td>-0.3 points</td></tr>
+    <tr><td>BERT</td><td>60.5%</td><td>59.7%</td><td>-0.8 points</td></tr>
   </tbody>
 </table>
 </div>
@@ -198,15 +220,15 @@ Accuracy alone would have shown a single number and hidden this split.</p>
 <p class="metric good">0.055</p>
 <p class="sub">expected calibration error</p>
 <p>Below the 0.1 line, so the probabilities mean roughly what they say. You can set a threshold and get the precision you asked for.</p>
-<p class="note">Wrong on 39.0% of 3999 posts — 431 called popular that were not, 1129 the other way.</p>
+<p class="note">Wrong on 39.0% of 3999 posts — 431 called popular that were not, 1127 the other way.</p>
 <h3>Where it goes wrong</h3>
 <div class="scroll">
 <table>
   <thead><tr><th>Slice</th><th>Bucket</th><th>Posts</th><th>Error rate</th></tr></thead>
   <tbody>
-    <tr><td>y_true</td><td>1</td><td>1578</td><td>71.5%</td></tr>
+    <tr><td>y_true</td><td>1</td><td>1578</td><td>71.4%</td></tr>
     <tr><td>day_of_week</td><td>5</td><td>860</td><td>42.7%</td></tr>
-    <tr><td>is_late_night</td><td>1.0</td><td>402</td><td>42.0%</td></tr>
+    <tr><td>is_late_night</td><td>1.0</td><td>402</td><td>41.8%</td></tr>
     <tr><td>hour</td><td>04-07</td><td>433</td><td>41.3%</td></tr>
     <tr><td>is_weekend</td><td>1.0</td><td>1567</td><td>41.2%</td></tr>
   </tbody>
@@ -258,7 +280,7 @@ python -m data.fetch_dataset --site stackoverflow --rows 20000 \
 python run_experiment.py --dataset datasets/posts.csv --epochs 3 \
     --embeddings --site</code></pre>
 <footer>
-  <p class="note">Generated by <code>python -m analysis.site</code> on 2026-10-23 15:38 UTC.
+  <p class="note">Generated by <code>python -m analysis.site</code> on 2026-10-26 16:02 UTC.
   Every number on this page is read from the run artefacts — none of it is typed
   by hand.</p>
   <p class="note"><a href="https://github.com/yougijain/text-vs-timing">Source and method on GitHub</a> · <a href="https://github.com/yougijain/text-vs-timing/blob/master/RESULTS.md">the full numbers</a></p>

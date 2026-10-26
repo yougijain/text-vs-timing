@@ -297,13 +297,40 @@ python benchmark.py --dataset datasets/posts.csv --llm      # adds both arms
 ```
 
 - **Dry-run by default.** Constructed programmatically without a classifier, it
-  refuses to call anything and quotes the price instead:
-  `A real pass over 226 prompts would cost roughly $0.12 on claude-opus-5.`
-- **Disk-cached** by (model, prompt), so re-running the grid after a bug fix is
-  free rather than a second bill.
+  refuses to call anything and quotes the price instead. On the Stack Overflow
+  split that is 7,998 prompts, roughly **$0.78 on `claude-haiku-5-5`**, the
+  default.
+- **Disk-cached** by (model, prompt) and saved every 100 calls, so re-running
+  after a bug fix, or resuming after a crash, does not bill twice.
+- **A declined post does not stop the run.** It gets the training split's
+  majority class and is counted in `llm_refusals`.
+- **`--llm-only` adds the row to a grid already on disk** instead of re-running
+  it, so the BERT rows survive. It first fits the free TF-IDF row and refuses,
+  before any call, if the validation split differs from the grid's.
 - **`anthropic` is not in `requirements.txt`** — installing it is part of opting in.
 - **Never a default.** No flag path reaches this row without `--llm` or
   `--model llm`.
+
+### Adding it to the grid
+
+```bash
+pip install anthropic
+export ANTHROPIC_API_KEY=...        # PowerShell: $env:ANTHROPIC_API_KEY = "..."
+
+# about 40 calls, well under a cent: checks the key and the call shape
+python main.py --dataset datasets/posts.csv --model llm --max-rows 200 \
+    --split-strategy temporal --skip-analysis
+
+# the row itself, merged into outputs/benchmark.json
+python benchmark.py --dataset datasets/posts.csv --llm-only --split-strategy temporal
+
+python -m analysis.report --dataset datasets/posts.csv
+python -m analysis.site --dataset datasets/posts.csv
+```
+
+The loop is serial, so the full row is a few thousand sequential calls: expect
+an hour or more. Interrupting it is safe; the same command resumes from the
+cache.
 
 ### Deliberately left for the next iteration
 

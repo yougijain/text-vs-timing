@@ -41,26 +41,34 @@ import numpy as np
 
 from training.evaluate import compute_metrics, print_metrics
 
-# Opus 5 by default. Picking a cheaper model is a real tradeoff on a few
-# thousand rows, but it is the caller's tradeoff to make, not this module's --
-# `--llm-model` and the cost estimate below are how that choice gets made
-# deliberately instead of silently.
-DEFAULT_MODEL = "claude-opus-5"
+# Haiku 5.5 by default. A binary label over ~8,000 prompts is the job the
+# small model is priced for: a full grid costs around a dollar on it and tens
+# of dollars on Opus. `--llm-model` switches; the estimate below makes the
+# difference visible before anything is spent.
+DEFAULT_MODEL = "claude-haiku-5-5"
 
 # Per-million-token rates, only for the pre-run cost estimate. They are a
 # convenience, not a source of truth, and they go stale -- the estimate says so.
 _PRICING_USD_PER_MTOK = {
+    "claude-opus-5-5": (4.00, 20.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-haiku-5-5": (0.10, 0.50),
     "claude-opus-5": (5.00, 25.00),
     "claude-sonnet-5": (2.00, 10.00),
     "claude-haiku-4-5": (1.00, 5.00),
 }
 
+# No claim about how common each label is. An earlier version said the classes
+# were "balanced by construction"; the median cut only searches for the most
+# even split the scores allow, and on Stack Overflow that is 38/62. Telling the
+# model otherwise pushes it toward 1 and below the majority baseline -- a
+# number that would measure the prompt, not the model.
 SYSTEM_PROMPT = (
     "You judge whether a forum post landed above or below typical engagement "
     "for its venue.\n"
     "Answer 1 if you expect it scored above the median for that venue, 0 if "
     "at or below.\n"
-    "The classes are balanced by construction, so do not favour either label."
+    "Do not assume the two answers are equally common."
 )
 
 # A JSON schema is what keeps this a classifier rather than a text generator.
@@ -77,6 +85,10 @@ LABEL_SCHEMA = {
         "additionalProperties": False,
     },
 }
+
+# Cached in place of a label when the model declines, so a resumed run does not
+# pay to be refused twice.
+REFUSED = -1
 
 _WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
              "Saturday", "Sunday")
@@ -167,15 +179,20 @@ class PromptCache:
         return len(self._entries)
 
 
-def estimate_cost(prompts, model=DEFAULT_MODEL, output_tokens=8):
+def estimate_cost(prompts, model=DEFAULT_MODEL, output_tokens=150):
     """Roughly what one pass over `prompts` would cost, before running it.
 
     Chars/4 is a crude token proxy and the rates go stale; this exists to tell
     the difference between "a few cents" and "eighty dollars", which is the
     only distinction that changes a decision. `count_tokens` would be exact and
     is the right call once this row is run for real.
+
+    The system prompt is sent with every request, so it is counted per prompt.
+    `output_tokens` is mostly thinking, not the label: thinking is on by
+    default on current models and is billed as output. 150 is a guess for a
+    binary judgement at low effort; the first real run's usage replaces it.
     """
-    input_tokens = sum(len(p) for p in prompts) / 4.0
+    input_tokens = sum(len(p) + len(SYSTEM_PROMPT) for p in prompts) / 4.0
     rates = _PRICING_USD_PER_MTOK.get(model)
     if rates is None:
         return {"model": model, "prompts": len(prompts), "usd": None,
@@ -194,7 +211,7 @@ def estimate_cost(prompts, model=DEFAULT_MODEL, output_tokens=8):
 
 
 def build_anthropic_classifier(model=DEFAULT_MODEL, system=SYSTEM_PROMPT):
-    """Return `prompt -> 0|1`, backed by the Messages API.
+    """Return `prompt -> 0|1|None`, backed by the Messages API.
 
     NEVER EXERCISED FROM THIS REPO. It is written against the current API and
     is the thing to run first when this row goes live, but the honest status is
@@ -206,12 +223,15 @@ def build_anthropic_classifier(model=DEFAULT_MODEL, system=SYSTEM_PROMPT):
         rather than a sentence that has to be parsed with a regex.
       * `effort: "low"` -- this is a binary judgement, not a reasoning task,
         and effort is the main spend dial. Thinking is left at its default
-        rather than disabled, which on this model is both cheaper in practice
-        and avoids the disabled-thinking failure modes.
-      * `max_tokens=256`, because the answer is one integer.
-      * The system prompt sits in a cacheable block and the post goes last, so
-        the stable prefix can be cached across rows. Caching is prefix-match:
-        anything volatile before the post would defeat it.
+        (on, adaptive) rather than configured, which keeps the call valid
+        across Haiku, Sonnet and Opus: Opus 5.5 rejects disabled thinking.
+      * `max_tokens=2048`. The label is one integer, but thinking counts
+        against the same limit; 256 could cut a call off before the label.
+        Only generated tokens are billed, so the headroom costs nothing.
+      * No prompt caching. The system prompt is far below the minimum
+        cacheable prefix, so a cache_control marker would silently do nothing.
+      * A refusal returns None rather than raising. One declined post would
+        otherwise stop the run on the same row every time it is resumed.
     """
     try:
         import anthropic
@@ -227,22 +247,23 @@ def build_anthropic_classifier(model=DEFAULT_MODEL, system=SYSTEM_PROMPT):
     def classify(prompt):
         response = client.messages.create(
             model=model,
-            max_tokens=256,
-            system=[{
-                "type": "text",
-                "text": system,
-                "cache_control": {"type": "ephemeral"},
-            }],
+            max_tokens=2048,
+            system=system,
             output_config={"effort": "low", "format": LABEL_SCHEMA},
             messages=[{"role": "user", "content": prompt}],
         )
 
         if response.stop_reason == "refusal":
             # Refusals are HTTP 200. Reading .content without checking would
-            # silently turn a declined row into a guess.
+            # silently turn a declined row into a guess; the caller decides
+            # what a declined row becomes, and counts it.
+            return None
+
+        if response.stop_reason == "max_tokens":
             raise RuntimeError(
-                "The model declined to classify a post "
-                f"(category: {getattr(response.stop_details, 'category', None)})."
+                "The model ran out of tokens before giving a label "
+                f"(max_tokens=2048, {response.usage.output_tokens} used). "
+                "Thinking used the budget; raise max_tokens."
             )
 
         text = next((b.text for b in response.content if b.type == "text"), "")
@@ -291,6 +312,7 @@ class LlmBaseline:
         self._fitted = False
         self._train_balance = None
         self._api_calls = 0
+        self._refusals = 0
 
     # -- shared-baseline interface -------------------------------------
 
@@ -384,13 +406,27 @@ class LlmBaseline:
             self.classify_fn = classify
             self._injected = False
 
+        # A declined post gets the training split's majority class -- the
+        # answer a model that knows nothing would give -- and is counted, so
+        # the write-up can say how many rows were not the model's own judgement.
+        fallback = int(np.argmax(self._train_balance))
+        self._refusals = 0  # per pass: evaluate() re-predicts the same rows
+
         labels = []
         for index, prompt in enumerate(prompts):
             cached = self.cache.get(self.model, prompt)
             if cached is None:
-                cached = int(classify(prompt))
+                answer = classify(prompt)
+                cached = REFUSED if answer is None else int(answer)
                 self.cache.put(self.model, prompt, cached)
                 self._api_calls += 1
+                # Save as it goes. A full grid is thousands of paid calls, and
+                # a crash at row 5,000 should not bill rows 1 to 4,999 again.
+                if self._api_calls % 100 == 0:
+                    self.cache.save()
+            if cached == REFUSED:
+                self._refusals += 1
+                cached = fallback
             labels.append(cached)
             if verbose and (index + 1) % 100 == 0:
                 print(f"  {index + 1}/{len(prompts)} classified "
@@ -414,6 +450,7 @@ class LlmBaseline:
         metrics = compute_metrics(labels, predictions, loss=0.0)
         metrics["llm_api_calls"] = self._api_calls
         metrics["llm_cache_hits"] = len(predictions) - self._api_calls
+        metrics["llm_refusals"] = self._refusals
         if verbose:
             print_metrics(metrics, labels, predictions, class_names,
                           header=f"Zero-shot LLM ({self.model})")

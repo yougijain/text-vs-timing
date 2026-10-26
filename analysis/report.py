@@ -219,7 +219,9 @@ def classify_outcome(rows, comparison=None):
             verdicts["architecture_dependence"] = (
                 f"The timestamp helps {', '.join(positive)} but not "
                 f"{', '.join(m for m in deltas if m not in positive)}. That "
-                "points at the fusion head rather than a signal in the clock."
+                "points at how that model takes the timestamp in -- a fusion "
+                "head, or for an LLM a sentence in the prompt -- rather than a "
+                "signal in the clock."
             )
         elif len(positive) == len(deltas) and deltas:
             verdicts["architecture_dependence"] = (

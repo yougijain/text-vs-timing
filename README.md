@@ -61,7 +61,7 @@ majority-class baseline. The test suite runs in a few seconds with no network.
 | Published page generated from the same artefacts | Done — renders *not run yet* until there is a run |
 | Test suite (411 tests, offline) | Done |
 | CI — lint, tests on 3.11/3.12, end-to-end smoke run | Done |
-| Results on a real corpus | **Linear grid run on 20,000 Stack Overflow posts — see [RESULTS.md](RESULTS.md).** BERT rows not run yet |
+| Results on a real corpus | **Done — full grid, BERT included, on 20,000 Stack Overflow posts. See [RESULTS.md](RESULTS.md)** |
 
 That last row is the one that matters. Everything below the line marked *sample
 data* was produced on generated text and is a check that the plumbing works, not
@@ -422,34 +422,6 @@ caveat.
 It also **decides what happened** rather than leaving that to the writer:
 
 ```
-### The page
-
-`RESULTS.md` is written for someone who already knows what a macro F1 is.
-`analysis/site.py` writes the same numbers for someone who does not:
-
-```bash
-python -m analysis.site --dataset datasets/posts.csv     # -> docs/index.html
-```
-
-One self-contained HTML file, no JavaScript, no CDN, no analytics — plus the
-figures copied in beside it so the directory renders on its own. It leads with
-the question and the answer in a sentence, then the grid as bars against the
-majority-class baseline, then fixed-versus-broken, then calibration, then what
-the result cannot tell you.
-
-It reads the same artefacts `analysis.report` does and imports its verdict
-functions rather than recomputing anything, so the page and the document cannot
-disagree. Where the numbers are missing it renders *not run yet* in each
-section, which is the state committed here now.
-
-One detail worth naming: a cell is coloured as a win only when the low end of
-its confidence interval clears the baseline. A flat threshold would paint a
-three-point gain on 226 rows green, and three points on 226 rows is noise.
-
-To publish, set GitHub Pages to **`master` / `docs`** in the repository
-settings once. After that the page updates by committing it, and it serves at
-`https://yougijain.github.io/text-vs-timing/`.
-
 ## What happened
 
 TF-IDF beats BERT (0.8230 vs 0.6239). On short text with a few thousand rows
@@ -476,6 +448,34 @@ back to an exact binomial.
 The model-vs-model verdict is weaker and says so: `benchmark.json` stores
 metrics rather than predictions, so that comparison falls back to overlapping
 confidence intervals.
+
+### The page
+
+`RESULTS.md` is written for someone who already knows what a macro F1 is.
+`analysis/site.py` writes the same numbers for someone who does not:
+
+```bash
+python -m analysis.site --dataset datasets/posts.csv     # -> docs/index.html
+```
+
+One self-contained HTML file, no JavaScript, no CDN, no analytics — plus the
+figures copied in beside it so the directory renders on its own. It leads with
+the question and the answer in a sentence, then the grid as bars against the
+majority-class baseline, then fixed-versus-broken, then calibration, then what
+the result cannot tell you.
+
+It reads the same artefacts `analysis.report` does and imports its verdict
+functions rather than recomputing anything, so the page and the document cannot
+disagree. Where the numbers are missing it renders *not run yet* in each
+section; the committed page has the Stack Overflow run.
+
+One detail worth naming: a cell is coloured as a win only when the low end of
+its confidence interval clears the baseline. A flat threshold would paint a
+three-point gain on 226 rows green, and three points on 226 rows is noise.
+
+To publish, set GitHub Pages to **`master` / `docs`** in the repository
+settings once. After that the page updates by committing it, and it serves at
+`https://yougijain.github.io/text-vs-timing/`.
 
 ## Error analysis
 

@@ -14,6 +14,7 @@ scored by the same compute_metrics, so the numbers are directly comparable.
 """
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -54,6 +55,74 @@ def _build_config(args, use_temporal):
     )
 
 
+def _llm_rows(args):
+    """Both arms of the zero-shot LLM row. Every call here is billed."""
+    rows = []
+    for use_temporal in (False, True):
+        config = _build_config(args, use_temporal)
+        config.ensure_dirs()
+        set_seed(config.seed)
+
+        feature_set = "text + temporal" if use_temporal else "text only"
+        label = f"Zero-shot {args.llm_model}"
+        print(f"\n{'=' * 70}\n{label} | {feature_set}\n{'=' * 70}")
+        results, _ = pipeline.run_llm_baseline(config, run_analysis=False,
+                                               dry_run=False)
+        rows.append({"model": label, "features": feature_set,
+                     "metrics": results["final_metrics"]})
+    return rows
+
+
+def _check_same_split(args, existing, out):
+    """Refuse before anything is billed if this run would score other rows.
+
+    A row added to a grid is only comparable if it was scored on the same
+    validation split. The grid file stores metrics, not the split, so this fits
+    the free TF-IDF row and compares its row count and majority baseline with
+    the grid's. The likely mismatch is the split strategy: this script defaults
+    to random, run_experiment.py to temporal.
+    """
+    config = _build_config(args, False)
+    config.ensure_dirs()
+    set_seed(config.seed)
+    print(f"\n{'=' * 70}\nChecking the split against {out} (TF-IDF, free)\n{'=' * 70}")
+    results, _ = pipeline.run_tfidf_baseline(config, run_analysis=False,
+                                             show_features=False)
+    probe = results["final_metrics"]
+    ref = existing[0]["metrics"]
+    same = (probe["num_samples"] == ref["num_samples"]
+            and abs(probe["majority_baseline"] - ref["majority_baseline"]) < 1e-9)
+    if not same:
+        raise SystemExit(
+            f"\nThe grid in {out} was scored on {ref['num_samples']} validation "
+            f"rows with a majority baseline of {ref['majority_baseline']:.4f}; "
+            f"this run would score {probe['num_samples']} rows at "
+            f"{probe['majority_baseline']:.4f}. Nothing was sent to the API.\n"
+            "Pass the flags the grid was run with -- run_experiment.py uses "
+            "--split-strategy temporal."
+        )
+
+
+def add_llm_rows(args, out):
+    """--llm-only: run the LLM pair and add it to a grid already on disk.
+
+    Re-running the whole grid to add one row would retrain BERT, which needs a
+    GPU. Rows with the same model and features are replaced, so a second run
+    updates the LLM row rather than duplicating it.
+    """
+    out = Path(out)
+    existing = []
+    if out.exists():
+        existing = json.loads(out.read_text(encoding="utf-8")).get("rows", [])
+    if existing:
+        _check_same_split(args, existing, out)
+
+    new = _llm_rows(args)
+    replaced = {(row["model"], row["features"]) for row in new}
+    return [row for row in existing
+            if (row["model"], row["features"]) not in replaced] + new
+
+
 def run_grid(args):
     """Run each configuration and collect its validation metrics."""
     rows = []
@@ -91,18 +160,7 @@ def run_grid(args):
     # than the frozen-embedding row. Opt-in and billed per validation row --
     # never reached unless --llm is passed explicitly.
     if args.llm:
-        for use_temporal in (False, True):
-            config = _build_config(args, use_temporal)
-            config.ensure_dirs()
-            set_seed(config.seed)
-
-            feature_set = "text + temporal" if use_temporal else "text only"
-            label = f"Zero-shot {args.llm_model}"
-            print(f"\n{'=' * 70}\n{label} | {feature_set}\n{'=' * 70}")
-            results, _ = pipeline.run_llm_baseline(config, run_analysis=False,
-                                                   dry_run=False)
-            rows.append({"model": label, "features": feature_set,
-                         "metrics": results["final_metrics"]})
+        rows += _llm_rows(args)
 
     if args.skip_bert:
         return rows
@@ -220,6 +278,10 @@ def parse_args(argv=None):
                              "call per validation row, per ablation arm.")
     parser.add_argument("--llm-model", default=DEFAULT_LLM_MODEL,
                         help="Model for the --llm row.")
+    parser.add_argument("--llm-only", action="store_true",
+                        help="Run only the LLM pair and add it to the grid "
+                             "already in --out, after checking it scores the "
+                             "same split. COSTS MONEY, like --llm.")
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--learning-rate", type=float, default=2e-5)
@@ -244,10 +306,10 @@ def main(argv=None):
             write_dataset(sample)
         args.dataset = sample
 
-    rows = run_grid(args)
+    out = args.out or (OUTPUT_DIR / "benchmark.json")
+    rows = add_llm_rows(args, out) if args.llm_only else run_grid(args)
     print_table(rows)
 
-    out = args.out or (OUTPUT_DIR / "benchmark.json")
     save_metrics({"rows": rows}, out)
     print(f"\nWritten to {out}")
     return rows

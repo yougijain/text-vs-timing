@@ -13,6 +13,7 @@ import pytest
 from models.llm_baseline import (
     DEFAULT_MODEL,
     LABEL_SCHEMA,
+    SYSTEM_PROMPT,
     LlmBaseline,
     PromptCache,
     build_prompt,
@@ -175,6 +176,21 @@ class TestEstimateCost:
     def test_states_that_it_is_rough(self):
         assert "Rough" in estimate_cost(["x"])["note"]
 
+    def test_the_default_model_has_a_price(self):
+        assert estimate_cost(["x"])["usd"] is not None
+
+    def test_the_system_prompt_is_billed_on_every_call(self):
+        # It is sent with each request; an estimate over empty posts is not 0.
+        assert estimate_cost([""] * 1000)["estimated_input_tokens"] > 0
+
+
+class TestPrompt:
+    def test_does_not_claim_the_labels_are_balanced(self):
+        # On Stack Overflow they are 38/62. Saying otherwise pushes the model
+        # toward 1 and below the majority baseline.
+        assert "balanced" not in SYSTEM_PROMPT
+        assert "equally common" in SYSTEM_PROMPT
+
 
 class TestDryRun:
     """The guard exists to stop an accidental bill; test it like it matters."""
@@ -227,6 +243,53 @@ class TestLlmBaseline:
         model.fit(repeated, np.ones(10, dtype=int), verbose=False)
         model.predict(repeated)
         assert calls["n"] == 1
+
+    def test_a_refusal_becomes_the_majority_class_and_is_counted(self, texts):
+        def refuses_good(prompt):
+            return None if "good" in prompt else 1
+
+        # Train balance is mostly 0, so a declined row is predicted 0.
+        model = LlmBaseline(use_temporal_features=False, classify_fn=refuses_good)
+        model.fit(texts, np.zeros(len(texts), dtype=int), verbose=False)
+        predictions = model.predict(texts)
+        declined = ["good" in t for t in texts]
+        assert all(p == 0 for p, d in zip(predictions, declined) if d)
+        metrics = model.evaluate(texts, np.zeros(len(texts), dtype=int),
+                                 verbose=False)
+        assert metrics["llm_refusals"] == sum(declined)
+
+    def test_a_refusal_is_not_billed_again_on_resume(self, tmp_path, texts):
+        calls = {"n": 0}
+
+        def refuses(prompt):
+            calls["n"] += 1
+            return None
+
+        cache = tmp_path / "cache.json"
+        for _ in range(2):
+            model = LlmBaseline(use_temporal_features=False, classify_fn=refuses,
+                                cache_path=cache)
+            model.fit(texts, np.zeros(len(texts), dtype=int), verbose=False)
+            model.predict(texts)
+        assert calls["n"] == len(set(texts))
+
+    def test_a_crash_mid_run_keeps_what_was_paid_for(self, tmp_path):
+        """Thousands of paid calls: a failure at row 150 must not lose 1-149."""
+        def dies_at_150(prompt):
+            dies_at_150.n += 1
+            if dies_at_150.n > 150:
+                raise ConnectionError("network went away")
+            return 1
+        dies_at_150.n = 0
+
+        posts = [f"post {i}" for i in range(300)]
+        cache = tmp_path / "cache.json"
+        model = LlmBaseline(use_temporal_features=False, classify_fn=dies_at_150,
+                            cache_path=cache)
+        model.fit(posts, np.ones(300, dtype=int), verbose=False)
+        with pytest.raises(ConnectionError):
+            model.predict(posts)
+        assert len(json.loads(cache.read_text())) >= 100
 
     def test_temporal_arm_changes_the_prompts(self, texts, labels, temporal):
         seen = []

@@ -1,5 +1,7 @@
 """The TF-IDF baseline and the benchmark grid."""
 
+import json
+
 import numpy as np
 import pytest
 
@@ -216,6 +218,48 @@ class TestBenchmark:
         ])
         baselines = {r["metrics"]["majority_baseline"] for r in rows}
         assert len(baselines) == 1
+
+    def _grid_on_disk(self, tmp_path):
+        """A TF-IDF grid plus a stand-in BERT row, as a GPU run would leave it."""
+        from data.make_sample_data import generate_dataset
+        csv = tmp_path / "sample.csv"
+        generate_dataset(400, seed=47).to_csv(csv, index=False)
+        out = tmp_path / "bench.json"
+        benchmark.main(["--dataset", str(csv), "--skip-bert",
+                        "--split-strategy", "random", "--out", str(out)])
+        grid = json.loads(out.read_text())
+        grid["rows"].append({"model": "BERT", "features": "text only",
+                             "metrics": grid["rows"][0]["metrics"]})
+        out.write_text(json.dumps(grid))
+        return csv, out, grid["rows"][0]["metrics"]
+
+    def test_llm_only_adds_to_the_grid_without_dropping_bert(self, tmp_path,
+                                                             monkeypatch):
+        csv, out, metrics = self._grid_on_disk(tmp_path)
+        fake = [{"model": "Zero-shot test", "features": f, "metrics": metrics}
+                for f in ("text only", "text + temporal")]
+        monkeypatch.setattr(benchmark, "_llm_rows", lambda args: list(fake))
+        argv = ["--dataset", str(csv), "--llm-only", "--split-strategy", "random",
+                "--out", str(out)]
+
+        rows = benchmark.main(argv)
+        models = [r["model"] for r in rows]
+        assert "BERT" in models and models.count("Zero-shot test") == 2
+        assert len(rows) == 5
+        # A second run replaces the LLM pair rather than appending another.
+        assert len(benchmark.main(argv)) == 5
+
+    def test_llm_only_refuses_a_different_split_before_billing(self, tmp_path,
+                                                               monkeypatch):
+        csv, out, _ = self._grid_on_disk(tmp_path)
+
+        def billed(args):
+            raise AssertionError("the API was reached")
+
+        monkeypatch.setattr(benchmark, "_llm_rows", billed)
+        with pytest.raises(SystemExit, match="Nothing was sent"):
+            benchmark.main(["--dataset", str(csv), "--llm-only", "--max-rows",
+                            "200", "--split-strategy", "random", "--out", str(out)])
 
     def test_print_table_handles_an_empty_grid(self, capsys):
         benchmark.print_table([])

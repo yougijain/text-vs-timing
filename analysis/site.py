@@ -135,9 +135,10 @@ def plain_answer(verdicts, rows):
         # while getting a lot of previously-right rows wrong, and the headline
         # number hides that entirely.
         lines.append(
-            f"Post by post, the timestamp corrected {test['fixed']} posts the "
-            f"text-only model got wrong and broke {test['broken']} it had got "
-            f"right ({_p_value(test.get('p_value'))}, "
+            f"Post by post, for {_esc(test.get('model', 'TF-IDF'))}, the "
+            f"timestamp corrected {test['fixed']} posts the text-only model got "
+            f"wrong and broke {test['broken']} it had got right "
+            f"({_p_value(test.get('p_value'))}, "
             f"{_esc(test.get('method', 'McNemar'))})."
         )
 

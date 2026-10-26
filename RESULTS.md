@@ -50,11 +50,13 @@ Lift is accuracy minus the majority-class baseline. **At or below zero means the
 | Frozen all-MiniLM-L6-v2 | 0.6197 | 0.6167 | -0.0030 |
 | BERT | 0.6052 | 0.5974 | -0.0078 |
 
-Adding the timestamp **fixes 34** predictions and **breaks 32**, a net gain of 2.
+On the **TF-IDF** pair, adding the timestamp **fixes 34** predictions and **breaks 32**, a net gain of 2.
 
 McNemar's test on those 66 discordant pairs: statistic 0.01515, p = 0.902 (chi-square with continuity correction).
 
 That is the right test for two classifiers over the same rows: the cases both get right carry no information about which is better, so only the disagreements count. A two-sample test on the two accuracies would ignore the pairing and overstate the sample size.
+
+The other rows (Frozen all-MiniLM-L6-v2, BERT) have only the accuracy deltas in the table above: `benchmark.json` stores metrics, not predictions, so there is no paired test for them.
 
 
 ## Calibration and errors

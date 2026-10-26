@@ -196,6 +196,21 @@ class TestRendering:
         assert "fixes 70" in text and "breaks 12" in text
         assert "McNemar" in text
 
+    def test_ablation_names_the_pair_the_test_was_run_on(self):
+        # The table above it has a row per architecture; the paired test
+        # covers one of them, and the reader has to be told which.
+        comparison = {"only_text-only_correct": 32,
+                      "only_text+temporal_correct": 34, "model": "TF-IDF"}
+        text = render_ablation(classify_outcome(_grid()["rows"], comparison))
+        assert "On the **TF-IDF** pair" in text
+        assert "other rows (BERT)" in text
+
+    def test_an_older_comparison_without_a_model_is_tfidf(self):
+        comparison = {"only_text-only_correct": 32,
+                      "only_text+temporal_correct": 34}
+        verdicts = classify_outcome(_grid()["rows"], comparison)
+        assert verdicts["temporal_test"]["model"] == "TF-IDF"
+
     def test_calibration_flags_a_bad_ece(self):
         text = render_calibration({"ece": ECE_CEILING + 0.2,
                                    "summary": {"error_rate": 0.3, "num_samples": 100}})

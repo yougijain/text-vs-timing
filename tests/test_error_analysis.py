@@ -1,5 +1,7 @@
 """Error analysis: slicing, calibration, and model comparison."""
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -312,6 +314,37 @@ class TestFeatureSetComparison:
         comparison = result["comparison"]
         assert (comparison["only_text_temporal_correct"]
                 > comparison["only_text_only_correct"])
+
+    def test_records_which_model_the_comparison_used(self, tmp_path):
+        from data.make_sample_data import generate_dataset
+        csv = tmp_path / "sample.csv"
+        generate_dataset(500, seed=41).to_csv(csv, index=False)
+
+        result = compare_feature_sets(csv, split_strategy="random",
+                                      json_out=tmp_path / "cmp.json")
+        assert result["comparison"]["model"] == "TF-IDF"
+        saved = json.loads((tmp_path / "cmp.json").read_text())
+        assert saved["comparison"]["model"] == "TF-IDF"
+
+    def test_a_small_net_gain_is_not_called_information(self, tmp_path,
+                                                         monkeypatch, capsys):
+        """34 fixed against 32 broken is noise. The printout used to call any
+        net gain 'adding information'; it now defers to McNemar."""
+        import analysis.error_analysis as ea
+        from data.make_sample_data import generate_dataset
+        csv = tmp_path / "sample.csv"
+        generate_dataset(300, seed=43).to_csv(csv, index=False)
+
+        def near_tie(frame_a, frame_b, name_a, name_b):
+            return {"num_samples": 3999, "agreement_rate": 0.98,
+                    "both_correct": 2407, "both_wrong": 1526,
+                    f"only_{name_a}_correct": 32, f"only_{name_b}_correct": 34}
+
+        monkeypatch.setattr(ea, "compare_predictions", near_tie)
+        compare_feature_sets(csv, split_strategy="random")
+        out = capsys.readouterr().out
+        assert "within noise" in out
+        assert "adding information" not in out
 
     def test_returns_both_frames_and_summaries(self, tmp_path):
         from data.make_sample_data import generate_dataset

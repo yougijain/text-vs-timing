@@ -32,6 +32,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from analysis.pattern_detection import add_marker_columns  # noqa: E402
+from analysis.report import mcnemar  # noqa: E402
 from data.data_loader import split_indices  # noqa: E402
 from data.preprocess import build_labels, clean_dataset  # noqa: E402
 from data.schema import read_dataset  # noqa: E402
@@ -602,24 +603,33 @@ def compare_feature_sets(dataset_path, label_strategy="median",
 
     comparison = compare_predictions(frames["text_only"], frames["text_temporal"],
                                      "text_only", "text_temporal")
+    # The grid has several architectures; this pair is only one of them, and
+    # the report has to be able to say which.
+    comparison["model"] = "TF-IDF"
 
-    print(f"\nTemporal ablation, example by example ({comparison['num_samples']} rows)")
+    print(f"\nTemporal ablation, {comparison['model']}, example by example "
+          f"({comparison['num_samples']} rows)")
     print(f"  agreement rate           {comparison['agreement_rate']:.1%}")
     print(f"  both correct             {comparison['both_correct']}")
     print(f"  both wrong               {comparison['both_wrong']}")
     print(f"  only text-only correct   {comparison['only_text_only_correct']}")
     print(f"  only text+temporal right {comparison['only_text_temporal_correct']}")
 
+    # Judge fixed-vs-broken with the same paired test the report uses. A raw
+    # "more fixed than broken" check calls 34 vs 32 a gain.
     gained = comparison["only_text_temporal_correct"]
     lost = comparison["only_text_only_correct"]
-    if gained > lost:
+    test = mcnemar(lost, gained)
+    if test["n_discordant"]:
         print(f"\n  Adding the timestamps fixes {gained} predictions and breaks "
-              f"{lost}, a net\n  gain of {gained - lost}. They are adding "
-              "information rather than reshuffling it.")
-    elif lost and gained <= lost:
-        print(f"\n  Adding the timestamps fixes {gained} predictions and breaks "
-              f"{lost}. The\n  headline gain is not coming from the temporal "
-              "features on this split.")
+              f"{lost}\n  (McNemar p = {test['p_value']:.3g}, {test['method']}).")
+        if not test["significant"]:
+            print("  That is within noise: no evidence the timestamps change "
+                  "anything on this split.")
+        elif gained > lost:
+            print("  They are adding information rather than reshuffling it.")
+        else:
+            print("  They are making the model worse on this split.")
 
     summaries = {name: error_summary(frame) for name, frame in frames.items()}
     for name, summary in summaries.items():

@@ -179,6 +179,9 @@ def classify_outcome(rows, comparison=None):
             test = mcnemar(lost, gained)
             verdicts["temporal_test"] = {
                 "fixed": int(gained), "broken": int(lost), **test,
+                # Older comparison files predate the key; that comparison has
+                # only ever been run on TF-IDF.
+                "model": comparison.get("model", "TF-IDF"),
             }
             verdicts["temporal_verdict"] = (
                 "helps" if test["significant"] and gained > lost
@@ -362,7 +365,8 @@ def render_ablation(verdicts):
     if test:
         p = _fmt(test.get("p_value"), ".4g")
         lines += [
-            f"Adding the timestamp **fixes {test['fixed']}** predictions and "
+            f"On the **{test['model']}** pair, adding the timestamp "
+            f"**fixes {test['fixed']}** predictions and "
             f"**breaks {test['broken']}**, a net gain of "
             f"{test['fixed'] - test['broken']}.",
             "",
@@ -376,6 +380,14 @@ def render_ablation(verdicts):
             "the two accuracies would ignore the pairing and overstate the "
             "sample size.",
         ]
+        others = [m for m in lifts if m != test["model"]]
+        if others:
+            lines += [
+                "",
+                f"The other rows ({', '.join(others)}) have only the accuracy "
+                "deltas in the table above: `benchmark.json` stores metrics, "
+                "not predictions, so there is no paired test for them.",
+            ]
 
     if verdicts.get("architecture_dependence"):
         lines += ["", verdicts["architecture_dependence"]]

@@ -122,13 +122,24 @@ def plain_answer(verdicts, rows):
         short = "Ran, but not enough of the grid to answer."
 
     if lifts:
-        best = max(lifts.values(), key=lambda lift: lift["delta"])
-        lines.append(
-            f"Adding the posting time to {_esc(best['model'])} moved accuracy "
-            f"from {_pct(best['text_only'])} to {_pct(best['text_temporal'])}, "
-            f"a change of {_points(best['delta'])} on "
-            f"{best['n_samples']} held-out posts."
+        # The biggest move in either direction, and named as such. Picking the
+        # most favourable delta and presenting it without a qualifier reads as
+        # the result when it is the best case.
+        largest = max(lifts.values(), key=lambda lift: abs(lift["delta"]))
+        change = (
+            f"accuracy went from {_pct(largest['text_only'])} to "
+            f"{_pct(largest['text_temporal'])}, a change of "
+            f"{_points(largest['delta'])} on {largest['n_samples']} held-out posts."
         )
+        if len(lifts) > 1:
+            lines.append(
+                f"The largest change from adding the posting time, across the "
+                f"{len(lifts)} models, was for {_esc(largest['model'])}: {change}"
+            )
+        else:
+            lines.append(
+                f"Adding the posting time to {_esc(largest['model'])}: {change}"
+            )
 
     if test:
         # Fixed and broken are the interesting cells: a model can gain accuracy

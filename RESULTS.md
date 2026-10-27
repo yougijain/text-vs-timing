@@ -38,6 +38,8 @@ Majority-class baseline: **0.6054** (3999 validation rows)
 | Frozen all-MiniLM-L6-v2 | text + temporal | 0.6167 | 0.5347 | +0.0113 |
 | BERT | text only | 0.6052 | 0.5604 | -0.0003 |
 | BERT | text + temporal | 0.5974 | 0.5565 | -0.0080 |
+| Zero-shot claude-haiku-5-5 | text only | 0.5971 | 0.4718 | -0.0083 |
+| Zero-shot claude-haiku-5-5 | text + temporal | 0.5999 | 0.4287 | -0.0055 |
 
 Lift is accuracy minus the majority-class baseline. **At or below zero means the model learned nothing**, whatever the accuracy says.
 
@@ -49,6 +51,7 @@ Lift is accuracy minus the majority-class baseline. **At or below zero means the
 | TF-IDF | 0.6099 | 0.6104 | +0.0005 |
 | Frozen all-MiniLM-L6-v2 | 0.6197 | 0.6167 | -0.0030 |
 | BERT | 0.6052 | 0.5974 | -0.0078 |
+| Zero-shot claude-haiku-5-5 | 0.5971 | 0.5999 | +0.0028 |
 
 On the **TF-IDF** pair, adding the timestamp **fixes 34** predictions and **breaks 32**, a net gain of 2.
 
@@ -56,7 +59,7 @@ McNemar's test on those 66 discordant pairs: statistic 0.01515, p = 0.902 (chi-s
 
 That is the right test for two classifiers over the same rows: the cases both get right carry no information about which is better, so only the disagreements count. A two-sample test on the two accuracies would ignore the pairing and overstate the sample size.
 
-The other rows (Frozen all-MiniLM-L6-v2, BERT) have only the accuracy deltas in the table above: `benchmark.json` stores metrics, not predictions, so there is no paired test for them.
+The other rows (Frozen all-MiniLM-L6-v2, BERT, Zero-shot claude-haiku-5-5) have only the accuracy deltas in the table above: `benchmark.json` stores metrics, not predictions, so there is no paired test for them.
 
 
 ## Calibration and errors

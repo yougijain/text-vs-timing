@@ -53,13 +53,13 @@ majority-class baseline. The test suite runs in a few seconds with no network.
 | TF-IDF + logistic regression baseline | Done |
 | Benchmark grid (model x feature set) | Done |
 | Frozen-embedding baseline (MiniLM + LR) | Done |
-| Zero-shot LLM row | **Scaffolded, never run** |
+| Zero-shot LLM row | Done — Claude Haiku 5.5, both arms, in [RESULTS.md](RESULTS.md) |
 | Descriptive analysis + figures | Done |
 | Error analysis (slices, calibration, model comparison) | Done |
 | Corpus fetcher + schema adapter (Stack Exchange, CC BY-SA 4.0) | Done |
 | One-command experiment runner + generated `RESULTS.md` | Done |
 | Published page generated from the same artefacts | Done — renders *not run yet* until there is a run |
-| Test suite (411 tests, offline) | Done |
+| Test suite (423 tests, offline) | Done |
 | CI — lint, tests on 3.11/3.12, end-to-end smoke run | Done |
 | Results on a real corpus | **Done — full grid, BERT included, on 20,000 Stack Overflow posts. See [RESULTS.md](RESULTS.md)** |
 
@@ -252,10 +252,10 @@ result.
 
 ## The zero-shot LLM row
 
-**Scaffolded, not run.** Every piece is implemented and tested; no API call has
-ever been made from this repo and no LLM row appears in any grid. It is a wired
-socket, not a result, and this section says so rather than letting a reader
-assume otherwise.
+**Run once, on Claude Haiku 5.5**, over the same 3,999 validation posts as the
+rest of the grid: 7,998 calls across the two arms, one refusal. The numbers are
+in [RESULTS.md](RESULTS.md) with every other row; this section is about how the
+row is built, not what it scored.
 
 It earns a place because it splits an axis the other three rows cannot:
 

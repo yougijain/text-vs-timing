@@ -1,9 +1,9 @@
 """Zero-shot LLM classification: the row a 2026 reviewer looks for first.
 
-SCAFFOLDED, NOT RUN. Every piece below is implemented and tested against an
-injected classifier, but no real API call has ever been made from this repo and
-no LLM row exists in any published grid. Treat it as a wired-up socket, not a
-result. `estimate_cost()` is here so nobody plugs it in by accident.
+Run once, on claude-haiku-5-5 over the Stack Overflow split: 7,998 calls, one
+refusal; the rows are in RESULTS.md. The tests still inject the classifier, so
+nothing in the suite spends money. `estimate_cost()` is here so nobody plugs a
+larger model in by accident.
 
 Why the row belongs in the grid at all. The other three rows differ in how they
 represent text while all learning the task from this corpus. A zero-shot LLM
@@ -213,9 +213,8 @@ def estimate_cost(prompts, model=DEFAULT_MODEL, output_tokens=150):
 def build_anthropic_classifier(model=DEFAULT_MODEL, system=SYSTEM_PROMPT):
     """Return `prompt -> 0|1|None`, backed by the Messages API.
 
-    NEVER EXERCISED FROM THIS REPO. It is written against the current API and
-    is the thing to run first when this row goes live, but the honest status is
-    untested-against-the-real-service.
+    Exercised for real once (claude-haiku-5-5, anthropic 2.3.0). The tests
+    never call it; they inject a classifier instead.
 
     Notes on the call shape, since they are the parts that cost money or
     silently degrade:

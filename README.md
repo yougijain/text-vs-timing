@@ -59,7 +59,7 @@ majority-class baseline. The test suite runs in a few seconds with no network.
 | Corpus fetcher + schema adapter (Stack Exchange, CC BY-SA 4.0) | Done |
 | One-command experiment runner + generated `RESULTS.md` | Done |
 | Published page generated from the same artefacts | Done — renders *not run yet* until there is a run |
-| Test suite (423 tests, offline) | Done |
+| Test suite (425 tests, offline) | Done |
 | CI — lint, tests on 3.11/3.12, end-to-end smoke run | Done |
 | Results on a real corpus | **Done — full grid, BERT included, on 20,000 Stack Overflow posts. See [RESULTS.md](RESULTS.md)** |
 

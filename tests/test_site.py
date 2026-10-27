@@ -135,6 +135,30 @@ class TestPlainAnswer:
         short, _ = plain_answer({"temporal_verdict": "hurts"}, rows)
         assert "No" in short and "worse" in short
 
+    def test_the_featured_change_is_the_largest_and_says_so(self, rows):
+        # +0.3 on one model and -0.8 on another: the -0.8 is the largest
+        # change, and the sentence has to say it is a pick across models.
+        lifts = {
+            "LLM": {"model": "LLM", "text_only": 0.597, "text_temporal": 0.600,
+                    "delta": 0.003, "n_samples": 3999},
+            "BERT": {"model": "BERT", "text_only": 0.605, "text_temporal": 0.597,
+                     "delta": -0.008, "n_samples": 3999},
+        }
+        _, lines = plain_answer({"temporal_verdict": "inconclusive",
+                                 "temporal_lifts": lifts}, rows)
+        lead = next(line for line in lines if "posting time" in line)
+        assert "largest change" in lead and "across the 2 models" in lead
+        assert "BERT" in lead and "-0.8 points" in lead
+
+    def test_a_single_model_is_not_called_the_largest(self, rows):
+        lifts = {"TF-IDF": {"model": "TF-IDF", "text_only": 0.61,
+                            "text_temporal": 0.62, "delta": 0.01,
+                            "n_samples": 400}}
+        _, lines = plain_answer({"temporal_verdict": "inconclusive",
+                                 "temporal_lifts": lifts}, rows)
+        lead = next(line for line in lines if "posting time" in line)
+        assert "largest" not in lead and "TF-IDF" in lead
+
     def test_inconclusive_is_stated_as_a_result(self, rows):
         _, lines = plain_answer({"temporal_verdict": "inconclusive"}, rows)
         assert any("is a result" in line for line in lines)

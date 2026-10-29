@@ -4,20 +4,28 @@
 
 **Does *when* a post goes up add anything over *what* it says?**
 
+**The answer, on 20,000 Stack Overflow questions: no.** Adding the posting time
+did not measurably help any of the four models, from TF-IDF to fine-tuned BERT
+to a zero-shot LLM. None of them beat "always predict no upvote" by more than
+sampling error, and fine-tuned BERT did not beat TF-IDF.
+**[The results page](https://yougijain.github.io/text-vs-timing/)** explains it
+in plain language; **[RESULTS.md](RESULTS.md)** has every number and the tests
+behind them. Both are generated from the run, not typed.
+
 Everyone accepts that posting time affects engagement — it is folklore on every
 platform with a "best time to post" blog article. Almost nobody measures it
-against the text. This project does: same rows, same labels, same split, two
-architectures, each run with and without the timestamp, and one table at the end
+against the text. This project does: same rows, same labels, same split, four
+models, each run with and without the timestamp, and one table at the end
 saying how much the clock was worth.
 
 The target is binary: did a post land above typical engagement for its venue.
-The comparison is a 2x2 grid.
+The comparison is a grid of four models by two feature sets.
 
 |                       | text only | text + temporal |
 |-----------------------|-----------|-----------------|
 | **TF-IDF + LR**       | ablation  | full            |
 | **Frozen MiniLM + LR**| ablation  | full            |
-| **Zero-shot LLM** *(scaffolded)* | ablation | full |
+| **Zero-shot LLM**     | ablation  | full            |
 | **BERT (fine-tuned)** | ablation  | full            |
 
 - **TF-IDF + logistic regression** — word and character n-grams, optionally
@@ -28,14 +36,18 @@ The comparison is a 2x2 grid.
   fine-tuned BERT varies two things at once — pretrained semantics *and*
   task-specific training — so a BERT win tells you nothing about which one paid.
   Holding training fixed splits that apart.
+- **Zero-shot LLM** — Claude Haiku 5.5 asked to label each post, with the
+  timestamp written into the prompt for the temporal arm. It has never seen a
+  label, so it tests how much of the task the trained rows actually learned.
+  See [The zero-shot LLM row](#the-zero-shot-llm-row).
 - **BERT + temporal fusion** — a BERT encoder for the text; cyclical
   hour-of-day, day-of-week, month, weekend and late-night features (all
   **UTC**, see [Timezones](#timezones)) through a small MLP; the two
   concatenated before the classification head.
 
-Running the same ablation on both architectures is the point. If the timestamp
-helps a linear model and a transformer alike, the signal is in the data. If it
-only helps one, what you are measuring is the fusion head.
+Running the same ablation on every model is the point. If the timestamp helps a
+linear model and a transformer alike, the signal is in the data. If it only
+helps one, what you are measuring is how that model takes the timestamp in.
 
 ## Status
 
@@ -656,7 +668,7 @@ no pretrained knowledge, so its accuracy is not a result.
 │   ├── attention_layer.py         # attention pooling over token states
 │   ├── bert_temporal_model.py     # BERT + temporal fusion classifier
 │   ├── embedding_baseline.py      # frozen sentence embeddings + logistic regression
-│   ├── llm_baseline.py            # zero-shot LLM row (scaffolded, opt-in)
+│   ├── llm_baseline.py            # zero-shot LLM row (opt-in, bills per call)
 │   ├── model_utils.py             # seeding, devices, checkpoints
 │   └── tfidf_baseline.py          # TF-IDF + logistic regression baseline
 ├── training/

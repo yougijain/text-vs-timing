@@ -782,6 +782,13 @@ Engagement is also not quality. A score is a measure of what an audience
 rewarded at a particular hour on a particular platform, and a model that
 predicts it is modelling that audience's behaviour, not the merit of the writing.
 
+## License
+
+The code is MIT — see [LICENSE](LICENSE). The Stack Exchange content it runs on
+is not: it stays under CC BY-SA 4.0 with attribution to its authors, as the
+[Dataset](#dataset) section describes. The corpus itself is not redistributed
+here, only its provenance record.
+
 ---
 
 # Appendix: the sample-data run
